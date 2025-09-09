@@ -19,7 +19,7 @@ router.get('/google/callback',
       const token = generateToken(req.user);
       
       // Redirect to frontend with token
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8100';
+      const frontendUrl = process.env.FRONTEND_URL;
       res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
     } catch (error) {
       console.error(67154, error);
@@ -54,7 +54,7 @@ router.get('/verify', (req, res) => {
     }
     
     const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     res.json({ valid: true, user: decoded });
   } catch (error) {
     console.error(67157, error);

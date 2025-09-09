@@ -13,11 +13,10 @@ const db = require('./config/database');
 // Import passport configuration
 const { passport } = require('./config/passport');
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
 var inventoryRouter = require('./routes/inventory');
 var objectRouter = require('./routes/object');
 var authRouter = require('./routes/auth');
+const { authenticateToken } = require('./middleware/auth');
 
 var app = express();
 
@@ -45,10 +44,8 @@ app.use(passport.session());
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
-app.use('/inventory', inventoryRouter);
-app.use('/object', objectRouter);
+app.use('/inventory', authenticateToken, inventoryRouter);
+app.use('/object', authenticateToken, objectRouter);
 app.use('/auth', authRouter);
 
 // Global error handler

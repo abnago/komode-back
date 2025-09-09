@@ -16,17 +16,13 @@ exports.setup = function(options, seedLink) {
 
 exports.up = function(db) {
   return db.runSql(`
-    ALTER TABLE user_tb 
-    ADD COLUMN name VARCHAR(255),
-    ADD COLUMN googleId VARCHAR(255)
+    ALTER TABLE object_tb ADD COLUMN inventoryId INT
   `);
 };
 
 exports.down = function(db) {
   return db.runSql(`
-    ALTER TABLE user_tb 
-    DROP COLUMN name,
-    DROP COLUMN googleId
+    ALTER TABLE object_tb DROP COLUMN inventoryId
   `);
 };
 

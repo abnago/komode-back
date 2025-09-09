@@ -1,17 +1,16 @@
 var express = require('express');
 var router = express.Router();
 const db = require('../config/database');
-const { authenticateToken } = require('../middleware/auth');
 
 // Create Inventory (POST /inventory/create)
-router.post('/create', authenticateToken, async function(req, res) {
+router.post('/create', async function(req, res) {
   try {
-    const { name, quantity } = req.body || {};
-    if (!name || quantity == null) {
-      return res.json({ code: 1, msg: 'name and quantity are required', data: null });
+    const { name, description } = req.body || {};
+    if (!name) {
+      return res.json({ code: 1, msg: 'name is required', data: null });
     }
     const userId = req.user.id;
-    const result = await db.queryAsync('INSERT INTO inventory_tb (name, quantity, user_id) VALUES (?, ?, ?)', [name, quantity, userId]);
+    const result = await db.queryAsync('INSERT INTO inventory_tb (name, description, userId) VALUES (?, ?, ?)', [name, description || null, userId]);
     res.json({ code: 0, msg: '', data: { id: result.results.insertId } });
   } catch (err) {
     console.error(67158, err);
@@ -20,12 +19,12 @@ router.post('/create', authenticateToken, async function(req, res) {
 });
 
 // Read Inventory by id (GET /inventory/get?id=)
-router.get('/get', authenticateToken, async function(req, res) {
+router.get('/get', async function(req, res) {
   try {
     const { id } = req.query || {};
     if (!id) return res.json({ code: 1, msg: 'id is required', data: null });
     const userId = req.user.id;
-    const result = await db.queryAsync('SELECT * FROM inventory_tb WHERE id = ? AND user_id = ?', [id, userId]);
+    const result = await db.queryAsync('SELECT * FROM inventory_tb WHERE id = ? AND userId = ?', [id, userId]);
     if (!result.results.length) return res.json({ code: 1, msg: 'not found', data: null });
     res.json({ code: 0, msg: '', data: result.results[0] });
   } catch (err) {
@@ -35,10 +34,10 @@ router.get('/get', authenticateToken, async function(req, res) {
 });
 
 // List Inventory (GET /inventory/list)
-router.get('/list', authenticateToken, async function(req, res) {
+router.get('/list', async function(req, res) {
   try {
     const userId = req.user.id;
-    const result = await db.queryAsync('SELECT * FROM inventory_tb WHERE user_id = ? ORDER BY id DESC', [userId]);
+    const result = await db.queryAsync('SELECT * FROM inventory_tb WHERE userId = ? ORDER BY id DESC', [userId]);
     res.json({ code: 0, msg: '', data: result.results });
   } catch (err) {
     console.error(67160, err);
@@ -47,18 +46,18 @@ router.get('/list', authenticateToken, async function(req, res) {
 });
 
 // Update Inventory (POST /inventory/update)
-router.post('/update', authenticateToken, async function(req, res) {
+router.post('/update', async function(req, res) {
   try {
-    const { id, name, quantity } = req.body || {};
+    const { id, name, description } = req.body || {};
     if (!id) return res.json({ code: 1, msg: 'id is required', data: null });
     const userId = req.user.id;
     const fields = [];
     const params = [];
     if (name != null) { fields.push('name = ?'); params.push(name); }
-    if (quantity != null) { fields.push('quantity = ?'); params.push(quantity); }
+    if (description != null) { fields.push('description = ?'); params.push(description); }
     if (!fields.length) return res.json({ code: 1, msg: 'nothing to update', data: null });
     params.push(id, userId);
-    const sql = `UPDATE inventory_tb SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`;
+    const sql = `UPDATE inventory_tb SET ${fields.join(', ')} WHERE id = ? AND userId = ?`;
     const result = await db.queryAsync(sql, params);
     if (result.results.affectedRows === 0) {
       return res.json({ code: 1, msg: 'not found or access denied', data: null });
@@ -71,12 +70,12 @@ router.post('/update', authenticateToken, async function(req, res) {
 });
 
 // Delete Inventory (POST /inventory/delete)
-router.post('/delete', authenticateToken, async function(req, res) {
+router.post('/delete', async function(req, res) {
   try {
     const { id } = req.body || {};
     if (!id) return res.json({ code: 1, msg: 'id is required', data: null });
     const userId = req.user.id;
-    const result = await db.queryAsync('DELETE FROM inventory_tb WHERE id = ? AND user_id = ?', [id, userId]);
+    const result = await db.queryAsync('DELETE FROM inventory_tb WHERE id = ? AND userId = ?', [id, userId]);
     if (result.results.affectedRows === 0) {
       return res.json({ code: 1, msg: 'not found or access denied', data: null });
     }

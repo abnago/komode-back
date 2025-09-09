@@ -7,7 +7,7 @@ const userService = require('../services/userService');
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:3000/auth/google/callback"
+  callbackURL: process.env.GOOGLE_CALLBACK_URL
 }, async (accessToken, refreshToken, profile, done) => {
   try {
     const email = profile.emails[0].value;
@@ -65,8 +65,8 @@ const generateToken = (user) => {
         name: user.name,
         lastSeen: user.lastSeen
       },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
     );
   } catch (error) {
     console.error(67173, error);

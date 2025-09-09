@@ -16,21 +16,20 @@ exports.setup = function(options, seedLink) {
 
 exports.up = function(db) {
   return db.runSql(`
-    CREATE TABLE IF NOT EXISTS inventory_tb (
+    CREATE TABLE IF NOT EXISTS object_tb (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(255) NOT NULL,
-      quantity INT NOT NULL DEFAULT 0,
-      user_id INT NOT NULL,
+      name VARCHAR(255),
+      description TEXT,
+      quantity INT DEFAULT 0,
+      userId INT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES user_tb(id) ON DELETE CASCADE,
-      INDEX idx_user_id (user_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    );
   `);
 };
 
 exports.down = function(db) {
-  return db.runSql('DROP TABLE IF EXISTS inventory_tb');
+  return db.runSql('DROP TABLE IF EXISTS object_tb');
 };
 
 exports._meta = {

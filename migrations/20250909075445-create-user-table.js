@@ -18,8 +18,8 @@ exports.up = function(db) {
   return db.runSql(`
     CREATE TABLE user_tb (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      email VARCHAR(255) NOT NULL UNIQUE,
-      lastSeen TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      email VARCHAR(255) UNIQUE,
+      lastSeen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 };
