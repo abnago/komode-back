@@ -4,36 +4,72 @@ require('dotenv').config();
 var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+var session = require('express-session');
+var cors = require('cors');
 
 // Import database connection
 const db = require('./config/database');
 
+// Import passport configuration
+const { passport } = require('./config/passport');
+
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+var inventoryRouter = require('./routes/inventory');
+var objectRouter = require('./routes/object');
+var authRouter = require('./routes/auth');
 
 var app = express();
 
-app.use(logger('dev'));
+// CORS configuration
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:8100',
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // Set to true in production with HTTPS
+}));
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use('/inventory', inventoryRouter);
+app.use('/object', objectRouter);
+app.use('/auth', authRouter);
 
-// Add database to global object
-global.db = db;
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error(67180, err);
+  res.json({code: 7, msg: "Internal server error"});
+});
 
 // Test database connection on startup
-db.queryAsync('SELECT 1 as test')
-  .then(() => {
-    console.log('✅ MySQL database connected successfully');
-  })
-  .catch((err) => {
-    console.error('❌ MySQL database connection failed:', err.message);
-    process.exit(1);
-  });
+try {
+  db.queryAsync('SELECT 1 as test')
+    .then(() => {
+      console.log('✅ MySQL database connected successfully');
+    })
+    .catch((err) => {
+      console.error('❌ MySQL database connection failed:', err.message);
+      process.exit(1);
+    });
+} catch (error) {
+  console.error(67181, error);
+  process.exit(1);
+}
 
 module.exports = app;
