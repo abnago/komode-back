@@ -17,6 +17,7 @@ var inventoryRouter = require('./routes/inventory');
 var objectRouter = require('./routes/object');
 var authRouter = require('./routes/auth');
 const { authenticateToken } = require('./middleware/auth');
+var { __dirname } = require("./util/multerOptions");
 
 var app = express();
 
@@ -43,6 +44,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use('/inventory', authenticateToken, inventoryRouter);
 app.use('/object', authenticateToken, objectRouter);

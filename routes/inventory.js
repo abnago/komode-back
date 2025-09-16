@@ -1,16 +1,23 @@
 var express = require('express');
 var router = express.Router();
 const db = require('../config/database');
+const upload = require('../util/multerOptions').default;
 
 // Create Inventory (POST /inventory/create)
-router.post('/create', async function(req, res) {
+router.post('/create', upload.single('image'), async function(req, res) {
   try {
     const { name, description } = req.body || {};
     if (!name) {
       return res.json({ code: 1, msg: 'name is required', data: null });
     }
     const userId = req.user.id;
-    const result = await db.queryAsync('INSERT INTO inventory_tb (name, description, userId) VALUES (?, ?, ?)', [name, description || null, userId]);
+    let image;
+    if (req.file) {
+      image = '/uploads/' + req.file.filename; // relative URL to the saved file
+    } else {
+      // Set default image...
+    }
+    const result = await db.queryAsync('INSERT INTO inventory_tb (name, description, userId, image) VALUES (?, ?, ?, ?)', [name, description || null, userId, image]);
     res.json({ code: 0, msg: '', data: { id: result.results.insertId } });
   } catch (err) {
     console.error(67158, err);
@@ -26,7 +33,11 @@ router.get('/get', async function(req, res) {
     const userId = req.user.id;
     const result = await db.queryAsync('SELECT * FROM inventory_tb WHERE id = ? AND userId = ?', [id, userId]);
     if (!result.results.length) return res.json({ code: 1, msg: 'not found', data: null });
-    res.json({ code: 0, msg: '', data: result.results[0] });
+    const data = {
+      ...result.results[0],
+      image: `${req.protocol}://${req.get("host")}${result.results[0].image}`
+    }
+    res.json({ code: 0, msg: '', data });
   } catch (err) {
     console.error(67159, err);
     res.json({code: 7, msg: "Internal server error"});
@@ -38,7 +49,17 @@ router.get('/list', async function(req, res) {
   try {
     const userId = req.user.id;
     const result = await db.queryAsync('SELECT * FROM inventory_tb WHERE userId = ? ORDER BY id DESC', [userId]);
-    res.json({ code: 0, msg: '', data: result.results });
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    // Map rows and attach full image URLs
+    const data = result.results.map(item => {
+      return {
+        ...item,
+        image: item.image
+          ? `${baseUrl}${item.image}`
+          : null
+      };
+    });
+    res.json({ code: 0, msg: '', data });
   } catch (err) {
     console.error(67160, err);
     res.json({code: 7, msg: "Internal server error"});
@@ -46,7 +67,7 @@ router.get('/list', async function(req, res) {
 });
 
 // Update Inventory (POST /inventory/update)
-router.post('/update', async function(req, res) {
+router.post('/update', upload.single('image'), async function(req, res) {
   try {
     const { id, name, description } = req.body || {};
     if (!id) return res.json({ code: 1, msg: 'id is required', data: null });
@@ -55,6 +76,7 @@ router.post('/update', async function(req, res) {
     const params = [];
     if (name != null) { fields.push('name = ?'); params.push(name); }
     if (description != null) { fields.push('description = ?'); params.push(description); }
+    if (req.file) { fields.push('image = ?'); params.push('/uploads/' + req.file.filename)}
     if (!fields.length) return res.json({ code: 1, msg: 'nothing to update', data: null });
     params.push(id, userId);
     const sql = `UPDATE inventory_tb SET ${fields.join(', ')} WHERE id = ? AND userId = ?`;
