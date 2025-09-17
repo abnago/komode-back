@@ -15,7 +15,7 @@ const storage = multer.diskStorage({
     cb(null, path.join(__dirname, './uploads')); // store in /uploads folder
   },
   filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now();
+    const uniqueSuffix = Date.now() + Math.round(Math.random() * 1E9);
     cb(null, uniqueSuffix + path.extname(file.originalname)); // e.g., 16946323.jpg
   }
 });
