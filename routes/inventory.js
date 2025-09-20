@@ -14,8 +14,6 @@ router.post('/create', upload.single('image'), async function(req, res) {
     let image;
     if (req.file) {
       image = '/uploads/' + req.file.filename; // relative URL to the saved file
-    } else {
-      // Set default image...
     }
     const result = await db.queryAsync('INSERT INTO inventory_tb (name, description, userId, image) VALUES (?, ?, ?, ?)', [name, description || null, userId, image]);
     res.json({ code: 0, msg: '', data: { id: result.results.insertId } });
@@ -56,7 +54,7 @@ router.get('/list', async function(req, res) {
         ...item,
         image: item.image
           ? `${baseUrl}${item.image}`
-          : null
+          : `${baseUrl}/uploads/default.png`
       };
     });
     res.json({ code: 0, msg: '', data });
