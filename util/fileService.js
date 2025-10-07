@@ -183,6 +183,52 @@ async function addFiles(entityId, entityType, files) {
     return await insertFiles(entityId, entityType, files, false);
 }
 
+/**
+ * Delete all objects in a shelf and their files
+ * @param {number} shelfId - The ID of the shelf
+ * @param {number} userId - The ID of the user
+ * @returns {Promise<number>} Number of objects deleted
+ */
+async function deleteShelfObjects(shelfId, userId) {
+    // Get all objects in this shelf
+    const objectsResult = await db.queryAsync('SELECT id FROM object_tb WHERE shelfId = ? AND userId = ?', [shelfId, userId]);
+    
+    // Delete all objects and their files
+    for (const object of objectsResult.results) {
+        await deleteEntityFiles(object.id, 'object');
+        await db.queryAsync('DELETE FROM object_tb WHERE id = ?', [object.id]);
+    }
+    
+    return objectsResult.results.length;
+}
+
+/**
+ * Delete all shelves in an inventory, their objects, and files
+ * @param {number} inventoryId - The ID of the inventory
+ * @param {number} userId - The ID of the user
+ * @returns {Promise<{shelvesDeleted: number, objectsDeleted: number}>} Deletion summary
+ */
+async function deleteInventoryShelves(inventoryId, userId) {
+    // Get all shelves in this inventory
+    const shelvesResult = await db.queryAsync('SELECT id FROM shelf_tb WHERE inventoryId = ? AND userId = ?', [inventoryId, userId]);
+    
+    let totalObjectsDeleted = 0;
+    
+    // Delete all objects in each shelf first
+    for (const shelf of shelvesResult.results) {
+        const objectsDeleted = await deleteShelfObjects(shelf.id, userId);
+        totalObjectsDeleted += objectsDeleted;
+    }
+    
+    // Delete all shelves
+    await db.queryAsync('DELETE FROM shelf_tb WHERE inventoryId = ? AND userId = ?', [inventoryId, userId]);
+    
+    return {
+        shelvesDeleted: shelvesResult.results.length,
+        objectsDeleted: totalObjectsDeleted
+    };
+}
+
 module.exports = {
   insertFiles,
   getFiles,
@@ -191,5 +237,7 @@ module.exports = {
   deleteFilesByUrls,
   deleteEntityFiles,
   updatePrimaryFile,
-  addFiles
+  addFiles,
+  deleteShelfObjects,
+  deleteInventoryShelves
 };

@@ -130,6 +130,9 @@ router.post('/delete', async function (req, res) {
       return res.json({ code: 1, msg: 'not found or access denied', data: null });
     }
 
+    // Delete all shelves, their objects, and files in this inventory
+    const deletionSummary = await fileService.deleteInventoryShelves(id, userId);
+
     // Delete associated files first
     await fileService.deleteEntityFiles(id, 'inventory');
 

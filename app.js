@@ -15,6 +15,7 @@ const { passport } = require('./config/passport');
 
 var inventoryRouter = require('./routes/inventory');
 var objectRouter = require('./routes/object');
+var shelfRouter = require('./routes/shelf');
 var searchRouter = require('./routes/search');
 var authRouter = require('./routes/auth');
 const { authenticateToken } = require('./middleware/auth');
@@ -49,6 +50,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use('/inventory', authenticateToken, inventoryRouter);
 app.use('/object', authenticateToken, objectRouter);
+app.use('/shelf', authenticateToken, shelfRouter);
 app.use('/search', authenticateToken, searchRouter);
 app.use('/auth', authRouter);
 
