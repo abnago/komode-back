@@ -181,7 +181,9 @@ router.put('/update', upload.array('images', 5), async function(req, res) {
     if (name != null) { fields.push('name = ?'); params.push(name); }
     if (description != null) { fields.push('description = ?'); params.push(description); }
     if (quantity != null) { fields.push('quantity = ?'); params.push(quantity); }
-    if (shelfId !== undefined) { fields.push('shelfId = ?'); params.push(shelfId || null); }
+    // Always update shelfId - set to null if not provided (removes object from shelf)
+    fields.push('shelfId = ?'); 
+    params.push(shelfId || null);
     
     // Handle file deletions
     if (deletedImages && deletedImages.length > 0) {
