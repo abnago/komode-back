@@ -23,10 +23,12 @@ var { __dirname } = require("./util/multerOptions");
 
 var app = express();
 
-// CORS configuration
+// CORS configuration - completely disabled (allows all origins)
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8100',
-  credentials: true
+  origin: '*',
+  credentials: false,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
