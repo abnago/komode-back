@@ -41,7 +41,7 @@ router.get('/get', async function (req, res) {
 
     const data = {
       ...result[0],
-      image: primaryFile.filename ? urlJoin(process.env.UPLOAD_URL, primaryFile.filename) : null
+      image: primaryFile && primaryFile.filename ? urlJoin(process.env.UPLOAD_URL, primaryFile.filename) : null
     };
 
     res.json({ code: 0, msg: '', data });
@@ -62,7 +62,7 @@ router.get('/list', async function (req, res) {
       const primaryFile = await fileService.getPrimaryFile(item.id, 'inventory');
       return {
         ...item,
-        image: primaryFile.filename ? urlJoin(process.env.UPLOAD_URL, primaryFile.filename) : null
+        image: primaryFile && primaryFile.filename ? urlJoin(process.env.UPLOAD_URL, primaryFile.filename) : null
       };
     }));
 

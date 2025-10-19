@@ -58,7 +58,7 @@ router.get('/get', async function(req, res) {
     
     const data = {
       ...result[0],
-      images: files[0] ? files.map(file => file.filename ? urlJoin(process.env.UPLOAD_URL, file.filename) : null) : []
+      images: files[0] ? files.map(file => file && file.filename ? urlJoin(process.env.UPLOAD_URL, file.filename) : null) : []
     };
     
     res.json({ code: 0, msg: '', data });
@@ -142,7 +142,7 @@ router.get('/list', async function(req, res) {
       return {
         ...obj,
         thumbnail: thumbnail ? urlJoin(process.env.UPLOAD_URL, thumbnail) : null,
-        images: files.map(file => file.filename ? urlJoin(process.env.UPLOAD_URL, file.filename) : null)
+        images: files.map(file => file && file.filename ? urlJoin(process.env.UPLOAD_URL, file.filename) : null)
       };
     }));
     
