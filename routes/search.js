@@ -18,9 +18,9 @@ router.post('/:inventoryId?', async (req, res) => {
                 ORDER BY id DESC`, [userId, `%${value}%`]);
             
         // Get thumbnail for each object and build response
-        const data = await Promise.all(result.results.map(async (obj) => {
+        const data = await Promise.all(result.map(async (obj) => {
             const files = await fileService.getFiles(obj.id, 'object');
-            const thumbnail = files.length > 0 ? files[files.length - 1].url : '/uploads/default.png';
+            const thumbnail = files[files.length - 1].url;
             
             return {
                 ...obj,

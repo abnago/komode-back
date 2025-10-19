@@ -1,5 +1,60 @@
 var db = require('../config/database');
-var { deleteFilesFromDisk } = require('./fileHelper');
+var fs = require('fs');
+var path = require('path');
+
+/**
+ * Delete a file from the uploads folder
+ * @param {string} filename - The filename (e.g., "filename.jpg")
+ * @returns {Promise<boolean>} True if file was deleted, false if file didn't exist or couldn't be deleted
+ */
+async function deleteFileFromDisk(filename) {
+  try {
+    // Security check: ensure the filename doesn't contain path traversal
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      console.error(`Invalid filename: ${filename}`);
+      return false;
+    }
+    
+    // Build absolute path to the file in uploads directory
+    const uploadsDir = path.join(__dirname, '..', 'uploads');
+    const absolutePath = path.join(uploadsDir, filename);
+    
+    // Additional security check: ensure the resolved path is within uploads directory
+    const resolvedPath = path.resolve(absolutePath);
+    const resolvedUploadsDir = path.resolve(uploadsDir);
+    
+    if (!resolvedPath.startsWith(resolvedUploadsDir)) {
+      console.error(`File path outside uploads directory: ${filename}`);
+      return false;
+    }
+    
+    // Check if file exists
+    if (fs.existsSync(absolutePath)) {
+      fs.unlinkSync(absolutePath);
+      console.log(`Deleted file: ${absolutePath}`);
+      return true;
+    } else {
+      console.log(`File not found: ${absolutePath}`);
+      return false;
+    }
+  } catch (error) {
+    console.error(`Error deleting file ${filename}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Delete multiple files from the uploads folder
+ * @param {Array} filenames - Array of filenames
+ * @returns {Promise<number>} Number of files successfully deleted
+ */
+async function deleteFilesFromDisk(filenames) {
+  if (!filenames || filenames.length === 0) return 0;
+  
+  const deletePromises = filenames.map(filename => deleteFileFromDisk(filename));
+  const results = await Promise.all(deletePromises);
+  return results.filter(result => result === true).length;
+}
 
 /**
  * Insert files into file_tb
@@ -13,22 +68,22 @@ async function insertFiles(entityId, entityType, files, isPrimary = false) {
     if (!files || files.length === 0) return [];
 
     const fileRecords = files.map((file, index) => ({
-        entity_id: entityId,
-        entity_type: entityType,
-        url: `/uploads/${file.filename}`,
-        is_primary: isPrimary && index === 0 // First file is primary for inventory
+        entityId: entityId,
+        entityType: entityType,
+        url: file.filename,
+        isPrimary: isPrimary && index === 0 // First file is primary for inventory
     }));
 
     const insertPromises = fileRecords.map(record =>
         db.queryAsync(
-            'INSERT INTO file_tb (entity_id, entity_type, url, is_primary) VALUES (?, ?, ?, ?)',
-            [record.entity_id, record.entity_type, record.url, record.is_primary]
+            'INSERT INTO file_tb (entityId, entityType, url, isPrimary) VALUES (?, ?, ?, ?)',
+            [record.entityId, record.entityType, record.url, record.isPrimary]
         )
     );
 
     const results = await Promise.all(insertPromises);
     return results.map((result, index) => ({
-        id: result.results.insertId,
+        id: result.insertId,
         ...fileRecords[index]
     }));
 }
@@ -41,10 +96,10 @@ async function insertFiles(entityId, entityType, files, isPrimary = false) {
  */
 async function getFiles(entityId, entityType) {
     const result = await db.queryAsync(
-        'SELECT * FROM file_tb WHERE entity_id = ? AND entity_type = ? ORDER BY is_primary DESC, id ASC',
+        'SELECT * FROM file_tb WHERE entityId = ? AND entityType = ? ORDER BY isPrimary DESC, id ASC',
         [entityId, entityType]
     );
-    return result.results;
+    return result;
 }
 
 /**
@@ -55,10 +110,10 @@ async function getFiles(entityId, entityType) {
  */
 async function getPrimaryFile(entityId, entityType) {
     const result = await db.queryAsync(
-        'SELECT * FROM file_tb WHERE entity_id = ? AND entity_type = ? AND is_primary = true LIMIT 1',
+        'SELECT * FROM file_tb WHERE entityId = ? AND entityType = ? AND isPrimary = true LIMIT 1',
         [entityId, entityType]
     );
-    return result.results.length > 0 ? result.results[0] : null;
+    return result.length > 0 ? result[0] : null;
 }
 
 /**
@@ -77,7 +132,7 @@ async function deleteFiles(fileIds) {
   );
   
   // Delete files from disk
-  const fileUrls = filesResult.results.map(file => file.url);
+  const fileUrls = filesResult.map(file => file.url);
   await deleteFilesFromDisk(fileUrls);
   
   // Delete from database
@@ -85,7 +140,7 @@ async function deleteFiles(fileIds) {
     `DELETE FROM file_tb WHERE id IN (${placeholders})`,
     fileIds
   );
-  return result.results.affectedRows;
+  return result.affectedRows;
 }
 
 /**
@@ -105,7 +160,7 @@ async function deleteFilesByUrls(fileUrls) {
     `DELETE FROM file_tb WHERE url IN (${placeholders})`,
     fileUrls
   );
-  return result.results.affectedRows;
+  return result.affectedRows;
 }
 
 /**
@@ -117,115 +172,58 @@ async function deleteFilesByUrls(fileUrls) {
 async function deleteEntityFiles(entityId, entityType) {
     // First get the file URLs before deleting from database
     const filesResult = await db.queryAsync(
-        'SELECT url FROM file_tb WHERE entity_id = ? AND entity_type = ?',
+        'SELECT url FROM file_tb WHERE entityId = ? AND entityType = ?',
         [entityId, entityType]
     );
     
     // Delete files from disk
-    const fileUrls = filesResult.results.map(file => file.url);
+    const fileUrls = filesResult.map(file => file.url);
     await deleteFilesFromDisk(fileUrls);
     
     // Delete from database
     const result = await db.queryAsync(
-        'DELETE FROM file_tb WHERE entity_id = ? AND entity_type = ?',
+        'DELETE FROM file_tb WHERE entityId = ? AND entityType = ?',
         [entityId, entityType]
     );
-    return result.results.affectedRows;
+    return result.affectedRows;
 }
 
 /**
  * Update primary file for an entity (for inventory)
  * @param {number} entityId - The ID of the entity
  * @param {string} entityType - The type of entity ('object' or 'inventory')
- * @param {string} newFileUrl - URL of the new primary file
+ * @param {string} newFileUrl - Filename of the new primary file
  * @returns {Promise<Object>} Updated file record
  */
 async function updatePrimaryFile(entityId, entityType, newFileUrl) {
     // First, get the old primary file URLs to delete them from disk
     const oldFilesResult = await db.queryAsync(
-        'SELECT url FROM file_tb WHERE entity_id = ? AND entity_type = ? AND is_primary = true',
+        'SELECT url FROM file_tb WHERE entityId = ? AND entityType = ? AND isPrimary = true',
         [entityId, entityType]
     );
     
     // Delete old files from disk
-    const oldFileUrls = oldFilesResult.results.map(file => file.url);
+    const oldFileUrls = oldFilesResult.map(file => file.url);
     await deleteFilesFromDisk(oldFileUrls);
     
     // Set all files for this entity to not primary
     await db.queryAsync(
-        'UPDATE file_tb SET is_primary = false WHERE entity_id = ? AND entity_type = ?',
+        'UPDATE file_tb SET isPrimary = false WHERE entityId = ? AND entityType = ?',
         [entityId, entityType]
     );
 
     // Then insert the new primary file
     const result = await db.queryAsync(
-        'INSERT INTO file_tb (entity_id, entity_type, url, is_primary) VALUES (?, ?, ?, true)',
+        'INSERT INTO file_tb (entityId, entityType, url, isPrimary) VALUES (?, ?, ?, true)',
         [entityId, entityType, newFileUrl]
     );
 
     return {
-        id: result.results.insertId,
-        entity_id: entityId,
-        entity_type: entityType,
+        id: result.insertId,
+        entityId: entityId,
+        entityType: entityType,
         url: newFileUrl,
-        is_primary: true
-    };
-}
-
-/**
- * Add files to existing entity
- * @param {number} entityId - The ID of the entity
- * @param {string} entityType - The type of entity ('object' or 'inventory')
- * @param {Array} files - Array of file objects from multer
- * @returns {Promise<Array>} Array of inserted file records
- */
-async function addFiles(entityId, entityType, files) {
-    return await insertFiles(entityId, entityType, files, false);
-}
-
-/**
- * Delete all objects in a shelf and their files
- * @param {number} shelfId - The ID of the shelf
- * @param {number} userId - The ID of the user
- * @returns {Promise<number>} Number of objects deleted
- */
-async function deleteShelfObjects(shelfId, userId) {
-    // Get all objects in this shelf
-    const objectsResult = await db.queryAsync('SELECT id FROM object_tb WHERE shelfId = ? AND userId = ?', [shelfId, userId]);
-    
-    // Delete all objects and their files
-    for (const object of objectsResult.results) {
-        await deleteEntityFiles(object.id, 'object');
-        await db.queryAsync('DELETE FROM object_tb WHERE id = ?', [object.id]);
-    }
-    
-    return objectsResult.results.length;
-}
-
-/**
- * Delete all shelves in an inventory, their objects, and files
- * @param {number} inventoryId - The ID of the inventory
- * @param {number} userId - The ID of the user
- * @returns {Promise<{shelvesDeleted: number, objectsDeleted: number}>} Deletion summary
- */
-async function deleteInventoryShelves(inventoryId, userId) {
-    // Get all shelves in this inventory
-    const shelvesResult = await db.queryAsync('SELECT id FROM shelf_tb WHERE inventoryId = ? AND userId = ?', [inventoryId, userId]);
-    
-    let totalObjectsDeleted = 0;
-    
-    // Delete all objects in each shelf first
-    for (const shelf of shelvesResult.results) {
-        const objectsDeleted = await deleteShelfObjects(shelf.id, userId);
-        totalObjectsDeleted += objectsDeleted;
-    }
-    
-    // Delete all shelves
-    await db.queryAsync('DELETE FROM shelf_tb WHERE inventoryId = ? AND userId = ?', [inventoryId, userId]);
-    
-    return {
-        shelvesDeleted: shelvesResult.results.length,
-        objectsDeleted: totalObjectsDeleted
+        isPrimary: true
     };
 }
 
@@ -236,8 +234,5 @@ module.exports = {
   deleteFiles,
   deleteFilesByUrls,
   deleteEntityFiles,
-  updatePrimaryFile,
-  addFiles,
-  deleteShelfObjects,
-  deleteInventoryShelves
+  updatePrimaryFile
 };

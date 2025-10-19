@@ -15,7 +15,7 @@ router.post('/create', upload.single('image'), async function (req, res) {
     const userId = req.user.id;
     // Create inventory
     const result = await db.queryAsync('INSERT INTO inventory_tb (name, description, userId) VALUES (?, ?, ?)', [name, description || null, userId]);
-    const inventoryId = result.results.insertId;
+    const inventoryId = result.insertId;
     // Handle file upload
     if (req.file) {
       await fileService.insertFiles(inventoryId, 'inventory', [req.file], true);
@@ -34,13 +34,13 @@ router.get('/get', async function (req, res) {
     if (!id) return res.json({ code: 1, msg: 'id is required', data: null });
     const userId = req.user.id;
     const result = await db.queryAsync('SELECT * FROM inventory_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!result.results.length) return res.json({ code: 1, msg: 'not found', data: null });
+    if (!result.length) return res.json({ code: 1, msg: 'not found', data: null });
 
     // Get primary file for this inventory
     const primaryFile = await fileService.getPrimaryFile(id, 'inventory');
 
     const data = {
-      ...result.results[0],
+      ...result[0],
       image: path.join(process.env.UPLOAD_URL, primaryFile.url)
     };
 
@@ -58,7 +58,7 @@ router.get('/list', async function (req, res) {
     const result = await db.queryAsync('SELECT * FROM inventory_tb WHERE userId = ? ORDER BY id DESC', [userId]);
 
     // Get primary files for each inventory and build response
-    const data = await Promise.all(result.results.map(async (item) => {
+    const data = await Promise.all(result.map(async (item) => {
       const primaryFile = await fileService.getPrimaryFile(item.id, 'inventory');
       return {
         ...item,
@@ -82,7 +82,7 @@ router.post('/update', upload.single('image'), async function (req, res) {
 
     // Check if inventory exists and belongs to user
     const inventoryCheck = await db.queryAsync('SELECT id FROM inventory_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!inventoryCheck.results.length) {
+    if (!inventoryCheck.length) {
       return res.json({ code: 1, msg: 'not found or access denied', data: null });
     }
 
@@ -93,7 +93,7 @@ router.post('/update', upload.single('image'), async function (req, res) {
 
     // Handle file upload
     if (req.file) {
-      await fileService.updatePrimaryFile(id, 'inventory', `/uploads/${req.file.filename}`);
+      await fileService.updatePrimaryFile(id, 'inventory', req.file.filename);
     }
 
     if (!fields.length && !req.file) {
@@ -123,19 +123,34 @@ router.post('/delete', async function (req, res) {
 
     // Check if inventory exists and belongs to user
     const inventoryCheck = await db.queryAsync('SELECT id FROM inventory_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!inventoryCheck.results.length) {
+    if (!inventoryCheck.length) {
       return res.json({ code: 1, msg: 'not found or access denied', data: null });
     }
 
-    // Delete all shelves, their objects, and files in this inventory
-    const deletionSummary = await fileService.deleteInventoryShelves(id, userId);
+    // Get all shelves in this inventory
+    const shelvesResult = await db.queryAsync('SELECT id FROM shelf_tb WHERE inventoryId = ? AND userId = ?', [id, userId]);
+    
+    // Delete all objects in each shelf first
+    for (const shelf of shelvesResult) {
+      // Get all objects in this shelf
+      const objectsResult = await db.queryAsync('SELECT id FROM object_tb WHERE shelfId = ? AND userId = ?', [shelf.id, userId]);
+      
+      // Delete all objects and their files
+      for (const object of objectsResult) {
+        await fileService.deleteEntityFiles(object.id, 'object');
+        await db.queryAsync('DELETE FROM object_tb WHERE id = ?', [object.id]);
+      }
+    }
+    
+    // Delete all shelves
+    await db.queryAsync('DELETE FROM shelf_tb WHERE inventoryId = ? AND userId = ?', [id, userId]);
 
-    // Delete associated files first
+    // Delete associated files for inventory
     await fileService.deleteEntityFiles(id, 'inventory');
 
     // Delete the inventory
     const result = await db.queryAsync('DELETE FROM inventory_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (result.results.affectedRows === 0) {
+    if (result.affectedRows === 0) {
       return res.json({ code: 1, msg: 'not found or access denied', data: null });
     }
     res.json({ code: 0, msg: '', data: { id } });

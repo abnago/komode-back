@@ -26,7 +26,7 @@ const db = {
             console.error(67174, err);
             reject(err);
           } else {
-            resolve({ results, fields });
+            resolve(results);
           }
         });
       } catch (error) {

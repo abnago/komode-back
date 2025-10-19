@@ -8,7 +8,7 @@ class UserService {
    */
   async findByEmail(email) {
     try {
-      const { results } = await db.queryAsync(
+      const results = await db.queryAsync(
         'SELECT * FROM user_tb WHERE email = ?',
         [email]
       );
@@ -28,7 +28,7 @@ class UserService {
    */
   async create(email, name, googleId) {
     try {
-      const { results } = await db.queryAsync(
+      const results = await db.queryAsync(
         'INSERT INTO user_tb (email, name, googleId, lastSeen) VALUES (?, ?, ?, NOW())',
         [email, name, googleId]
       );
@@ -48,7 +48,7 @@ class UserService {
    */
   async findById(id) {
     try {
-      const { results } = await db.queryAsync(
+      const results = await db.queryAsync(
         'SELECT * FROM user_tb WHERE id = ?',
         [id]
       );

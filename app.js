@@ -1,5 +1,6 @@
 // Load environment variables
 require('dotenv').config();
+const bootstrap = require('./bootstrap');
 
 var express = require('express');
 var path = require('path');
@@ -8,14 +9,16 @@ var cors = require('cors');
 // Import database connection
 const db = require('./config/database');
 
-var inventoryRouter = require('./routes/inventory');
-var objectRouter = require('./routes/object');
-var shelfRouter = require('./routes/shelf');
-var searchRouter = require('./routes/search');
-var authRouter = require('./routes/auth');
+const inventoryRouter = require('./routes/inventory');
+const objectRouter = require('./routes/object');
+const shelfRouter = require('./routes/shelf');
+const searchRouter = require('./routes/search');
+const authRouter = require('./routes/auth');
 const { authenticateToken } = require('./middleware/auth');
 
 var app = express();
+
+bootstrap();
 
 // CORS configuration - completely disabled (allows all origins)
 app.use(cors());
@@ -41,10 +44,10 @@ app.use((err, req, res, next) => {
 try {
   db.queryAsync('SELECT 1 as test')
     .then(() => {
-      console.log('✅ MySQL database connected successfully');
+      console.log('MySQL database connected successfully');
     })
     .catch((err) => {
-      console.error('❌ MySQL database connection failed:', err.message);
+      console.error('MySQL database connection failed:', err.message);
       process.exit(1);
     });
 } catch (error) {

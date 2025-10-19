@@ -13,13 +13,13 @@ router.post('/create', async function(req, res) {
     
     // Verify that the inventory belongs to the user
     const inventoryCheck = await db.queryAsync('SELECT id FROM inventory_tb WHERE id = ? AND userId = ?', [inventoryId, userId]);
-    if (!inventoryCheck.results.length) {
+    if (!inventoryCheck.length) {
       return res.json({ code: 1, msg: 'inventory not found or access denied', data: null });
     }
     
     // Insert shelf
     const result = await db.queryAsync('INSERT INTO shelf_tb (name, description, inventoryId, userId) VALUES (?, ?, ?, ?)', [name, description || null, inventoryId, userId]);
-    const shelfId = result.results.insertId;
+    const shelfId = result.insertId;
     
     res.json({ code: 0, msg: '', data: { id: shelfId } });
   } catch (err) {
@@ -35,9 +35,9 @@ router.get('/get', async function(req, res) {
     if (!id) return res.json({ code: 1, msg: 'id is required', data: null });
     const userId = req.user.id;
     const result = await db.queryAsync('SELECT * FROM shelf_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!result.results.length) return res.json({ code: 1, msg: 'not found', data: null });
+    if (!result.length) return res.json({ code: 1, msg: 'not found', data: null });
     
-    res.json({ code: 0, msg: '', data: result.results[0] });
+    res.json({ code: 0, msg: '', data: result[0] });
   } catch (err) {
     console.error(67171, err);
     res.json({code: 7, msg: "Internal server error"});
@@ -51,8 +51,8 @@ router.get('/inventory', async function(req, res) {
     if (!id) return res.json({ code: 1, msg: 'id is required', data: null });
     const userId = req.user.id;
     const result = await db.queryAsync('SELECT * FROM inventory_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!result.results.length) return res.json({ code: 1, msg: 'inventory not found or access denied', data: null });
-    res.json({ code: 0, msg: '', data: result.results[0] });
+    if (!result.length) return res.json({ code: 1, msg: 'inventory not found or access denied', data: null });
+    res.json({ code: 0, msg: '', data: result[0] });
   } catch (err) {
     console.error(67172, err);
     res.json({code: 7, msg: "Internal server error"});
@@ -69,7 +69,7 @@ router.get('/list', async function(req, res) {
     
     // Verify that the inventory belongs to the user
     const inventoryCheck = await db.queryAsync('SELECT id FROM inventory_tb WHERE id = ? AND userId = ?', [inventoryId, userId]);
-    if (!inventoryCheck.results.length) {
+    if (!inventoryCheck.length) {
       return res.json({ code: 1, msg: 'inventory not found or access denied', data: null });
     }
     
@@ -78,7 +78,7 @@ router.get('/list', async function(req, res) {
       WHERE userId = ? AND inventoryId = ?
       ORDER BY id DESC`, [userId, inventoryId]);
     
-    res.json({ code: 0, msg: '', data: result.results });
+    res.json({ code: 0, msg: '', data: result });
   } catch (err) {
     console.error(67173, err);
     res.json({code: 7, msg: "Internal server error"});
@@ -94,7 +94,7 @@ router.post('/update', async function(req, res) {
     
     // Check if shelf exists and belongs to user
     const shelfCheck = await db.queryAsync('SELECT id FROM shelf_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!shelfCheck.results.length) {
+    if (!shelfCheck.length) {
       return res.json({ code: 1, msg: 'not found or access denied', data: null });
     }
     
@@ -128,16 +128,22 @@ router.post('/delete', async function(req, res) {
     
     // Check if shelf exists and belongs to user
     const shelfCheck = await db.queryAsync('SELECT id FROM shelf_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!shelfCheck.results.length) {
+    if (!shelfCheck.length) {
       return res.json({ code: 1, msg: 'not found or access denied', data: null });
     }
     
-    // Delete all objects and their files in this shelf
-    await fileService.deleteShelfObjects(id, userId);
+    // Get all objects in this shelf
+    const objectsResult = await db.queryAsync('SELECT id FROM object_tb WHERE shelfId = ? AND userId = ?', [id, userId]);
+    
+    // Delete all objects and their files
+    for (const object of objectsResult) {
+      await fileService.deleteEntityFiles(object.id, 'object');
+      await db.queryAsync('DELETE FROM object_tb WHERE id = ?', [object.id]);
+    }
     
     // Delete the shelf
     const result = await db.queryAsync('DELETE FROM shelf_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (result.results.affectedRows === 0) {
+    if (result.affectedRows === 0) {
       return res.json({ code: 1, msg: 'not found or access denied', data: null });
     }
     res.json({ code: 0, msg: '', data: { id } });

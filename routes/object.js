@@ -16,21 +16,21 @@ router.post('/create', upload.array('images', 5), async function(req, res) {
     
     // Verify that the inventory belongs to the user
     const inventoryCheck = await db.queryAsync('SELECT id FROM inventory_tb WHERE id = ? AND userId = ?', [inventoryId, userId]);
-    if (!inventoryCheck.results.length) {
+    if (!inventoryCheck.length) {
       return res.json({ code: 1, msg: 'inventory not found or access denied', data: null });
     }
     
     // If shelfId is provided, verify that the shelf belongs to the user and the same inventory
     if (shelfId) {
       const shelfCheck = await db.queryAsync('SELECT id FROM shelf_tb WHERE id = ? AND userId = ? AND inventoryId = ?', [shelfId, userId, inventoryId]);
-      if (!shelfCheck.results.length) {
+      if (!shelfCheck.length) {
         return res.json({ code: 1, msg: 'shelf not found or access denied', data: null });
       }
     }
     
     // Insert object without images column
     const result = await db.queryAsync('INSERT INTO object_tb (name, description, quantity, userId, inventoryId, shelfId) VALUES (?, ?, ?, ?, ?, ?)', [name, description || null, quantity, userId, inventoryId, shelfId || null]);
-    const objectId = result.results.insertId;
+    const objectId = result.insertId;
     
     // Handle file uploads
     if (req.files && req.files.length > 0) {
@@ -51,13 +51,13 @@ router.get('/get', async function(req, res) {
     if (!id) return res.json({ code: 1, msg: 'id is required', data: null });
     const userId = req.user.id;
     const result = await db.queryAsync('SELECT * FROM object_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!result.results.length) return res.json({ code: 1, msg: 'not found', data: null });
+    if (!result.length) return res.json({ code: 1, msg: 'not found', data: null });
     
     // Get files for this object
     const files = await fileService.getFiles(id, 'object');
     
     const data = {
-      ...result.results[0],
+      ...result[0],
       images: files.map(file => path.join(process.env.UPLOAD_URL, file.url))
     };
     
@@ -75,8 +75,8 @@ router.get('/inventory', async function(req, res) {
     if (!id) return res.json({ code: 1, msg: 'id is required', data: null });
     const userId = req.user.id;
     const result = await db.queryAsync('SELECT * FROM inventory_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!result.results.length) return res.json({ code: 1, msg: 'inventory not found or access denied', data: null });
-    res.json({ code: 0, msg: '', data: result.results[0] });
+    if (!result.length) return res.json({ code: 1, msg: 'inventory not found or access denied', data: null });
+    res.json({ code: 0, msg: '', data: result[0] });
   } catch (err) {
     console.error(67168, err);
     res.json({code: 7, msg: "Internal server error"});
@@ -90,8 +90,8 @@ router.get('/shelf', async function(req, res) {
     if (!id) return res.json({ code: 1, msg: 'id is required', data: null });
     const userId = req.user.id;
     const result = await db.queryAsync('SELECT * FROM shelf_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!result.results.length) return res.json({ code: 1, msg: 'shelf not found or access denied', data: null });
-    res.json({ code: 0, msg: '', data: result.results[0] });
+    if (!result.length) return res.json({ code: 1, msg: 'shelf not found or access denied', data: null });
+    res.json({ code: 0, msg: '', data: result[0] });
   } catch (err) {
     console.error(67169, err);
     res.json({code: 7, msg: "Internal server error"});
@@ -108,14 +108,14 @@ router.get('/list', async function(req, res) {
     
     // Verify that the inventory belongs to the user
     const inventoryCheck = await db.queryAsync('SELECT id FROM inventory_tb WHERE id = ? AND userId = ?', [inventoryId, userId]);
-    if (!inventoryCheck.results.length) {
+    if (!inventoryCheck.length) {
       return res.json({ code: 1, msg: 'inventory not found or access denied', data: null });
     }
     
     // If shelfId is provided, verify that the shelf belongs to the user and the same inventory
     if (shelfId) {
       const shelfCheck = await db.queryAsync('SELECT id FROM shelf_tb WHERE id = ? AND userId = ? AND inventoryId = ?', [shelfId, userId, inventoryId]);
-      if (!shelfCheck.results.length) {
+      if (!shelfCheck.length) {
         return res.json({ code: 1, msg: 'shelf not found or access denied', data: null });
       }
     }
@@ -135,9 +135,9 @@ router.get('/list', async function(req, res) {
     const result = await db.queryAsync(query, params);
     
     // Get files for each object and build response
-    const data = await Promise.all(result.results.map(async (obj) => {
+    const data = await Promise.all(result.map(async (obj) => {
       const files = await fileService.getFiles(obj.id, 'object');
-      const thumbnail = files.length > 0 ? files[files.length - 1].url : '/uploads/default.png';
+      const thumbnail = files[files.length - 1].url;
       
       return {
         ...obj,
@@ -162,14 +162,14 @@ router.put('/update', upload.array('images', 5), async function(req, res) {
     
     // Check if object exists and belongs to user
     const objectCheck = await db.queryAsync('SELECT id, inventoryId FROM object_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!objectCheck.results.length) {
+    if (!objectCheck.length) {
       return res.json({ code: 1, msg: 'not found or access denied', data: null });
     }
     
     // If shelfId is provided, verify that the shelf belongs to the user and the same inventory
     if (shelfId) {
-      const shelfCheck = await db.queryAsync('SELECT id FROM shelf_tb WHERE id = ? AND userId = ? AND inventoryId = ?', [shelfId, userId, objectCheck.results[0].inventoryId]);
-      if (!shelfCheck.results.length) {
+      const shelfCheck = await db.queryAsync('SELECT id FROM shelf_tb WHERE id = ? AND userId = ? AND inventoryId = ?', [shelfId, userId, objectCheck[0].inventoryId]);
+      if (!shelfCheck.length) {
         return res.json({ code: 1, msg: 'shelf not found or access denied', data: null });
       }
     }
@@ -194,7 +194,7 @@ router.put('/update', upload.array('images', 5), async function(req, res) {
     
     // Handle new file uploads
     if (req.files && req.files.length > 0) {
-      await fileService.addFiles(id, 'object', req.files);
+      await fileService.insertFiles(id, 'object', req.files, false);
     }
     
     if (!fields.length && !req.files && !deletedImages) {
@@ -224,7 +224,7 @@ router.delete('/delete', async function(req, res) {
     
     // Check if object exists and belongs to user
     const objectCheck = await db.queryAsync('SELECT id FROM object_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!objectCheck.results.length) {
+    if (!objectCheck.length) {
       return res.json({ code: 1, msg: 'not found or access denied', data: null });
     }
     
@@ -233,7 +233,7 @@ router.delete('/delete', async function(req, res) {
     
     // Delete the object
     const result = await db.queryAsync('DELETE FROM object_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (result.results.affectedRows === 0) {
+    if (result.affectedRows === 0) {
       return res.json({ code: 1, msg: 'not found or access denied', data: null });
     }
     res.json({ code: 0, msg: '', data: { id } });
