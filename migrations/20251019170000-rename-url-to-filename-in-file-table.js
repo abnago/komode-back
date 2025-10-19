@@ -15,31 +15,35 @@ exports.setup = function(options, seedLink) {
 };
 
 exports.up = function(db) {
+  // First, update existing data to remove /uploads/ prefix
   return db.runSql(`
-    -- First, update existing data to remove /uploads/ prefix
     UPDATE file_tb 
     SET url = CASE 
       WHEN url LIKE '/uploads/%' THEN SUBSTRING(url, 10)
       WHEN url LIKE 'uploads/%' THEN SUBSTRING(url, 9)
       ELSE url 
-    END;
-    
-    -- Then rename the column from url to filename
-    ALTER TABLE file_tb 
-    CHANGE COLUMN url filename VARCHAR(255);
-  `);
+    END
+  `).then(function() {
+    // Then rename the column from url to filename
+    return db.runSql(`
+      ALTER TABLE file_tb 
+      CHANGE COLUMN url filename VARCHAR(255)
+    `);
+  });
 };
 
 exports.down = function(db) {
+  // Rename the column back from filename to url
   return db.runSql(`
-    -- Rename the column back from filename to url
     ALTER TABLE file_tb 
-    CHANGE COLUMN filename url VARCHAR(255);
-    
-    -- Add back the /uploads/ prefix
-    UPDATE file_tb 
-    SET url = CONCAT('/uploads/', url);
-  `);
+    CHANGE COLUMN filename url VARCHAR(255)
+  `).then(function() {
+    // Add back the /uploads/ prefix
+    return db.runSql(`
+      UPDATE file_tb 
+      SET url = CONCAT('/uploads/', url)
+    `);
+  });
 };
 
 exports._meta = {
