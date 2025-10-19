@@ -137,7 +137,7 @@ router.get('/list', async function(req, res) {
     // Get files for each object and build response
     const data = await Promise.all(result.map(async (obj) => {
       const files = await fileService.getFiles(obj.id, 'object');
-      const thumbnail = files[files.length - 1].filename;
+      const thumbnail = files[files.length - 1]?.filename;
       
       return {
         ...obj,
