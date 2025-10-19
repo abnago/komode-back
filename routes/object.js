@@ -3,7 +3,7 @@ var router = express.Router();
 const db = require('../config/database');
 const upload = require('../util/multerOptions');
 const fileService = require('../util/fileService');
-const urlJoin = require('url-join');
+const urlJoin = require('url-join').default;
 
 // Create Object (POST /object/create)
 router.post('/create', upload.array('images', 5), async function(req, res) {

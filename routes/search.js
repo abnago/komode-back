@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 const db = require('../config/database');
 const fileService = require('../util/fileService');
-const urlJoin = require('url-join');
+const urlJoin = require('url-join').default;
 
 router.post('/:inventoryId?', async (req, res) => {
     try {

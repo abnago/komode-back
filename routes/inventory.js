@@ -3,7 +3,7 @@ var router = express.Router();
 const db = require('../config/database');
 const upload = require('../util/multerOptions');
 const fileService = require('../util/fileService');
-const urlJoin = require('url-join');
+const urlJoin = require('url-join').default;
 
 // Create Inventory (POST /inventory/create)
 router.post('/create', upload.single('image'), async function (req, res) {
