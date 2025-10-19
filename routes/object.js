@@ -3,7 +3,7 @@ var router = express.Router();
 const db = require('../config/database');
 const upload = require('../util/multerOptions');
 const fileService = require('../util/fileService');
-const path = require('path');
+const urlJoin = require('url-join');
 
 // Create Object (POST /object/create)
 router.post('/create', upload.array('images', 5), async function(req, res) {
@@ -58,7 +58,7 @@ router.get('/get', async function(req, res) {
     
     const data = {
       ...result[0],
-      images: files[0] ? files.map(file => file.filename ? path.join(process.env.UPLOAD_URL, file.filename) : null) : []
+      images: files[0] ? files.map(file => file.filename ? urlJoin(process.env.UPLOAD_URL, file.filename) : null) : []
     };
     
     res.json({ code: 0, msg: '', data });
@@ -141,8 +141,8 @@ router.get('/list', async function(req, res) {
       
       return {
         ...obj,
-        thumbnail: thumbnail ? path.join(process.env.UPLOAD_URL, thumbnail) : null,
-        images: files.map(file => file.filename ? path.join(process.env.UPLOAD_URL, file.filename) : null)
+        thumbnail: thumbnail ? urlJoin(process.env.UPLOAD_URL, thumbnail) : null,
+        images: files.map(file => file.filename ? urlJoin(process.env.UPLOAD_URL, file.filename) : null)
       };
     }));
     

@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 const db = require('../config/database');
 const fileService = require('../util/fileService');
-const path = require('path');
+const urlJoin = require('url-join');
 
 router.post('/:inventoryId?', async (req, res) => {
     try {
@@ -24,7 +24,7 @@ router.post('/:inventoryId?', async (req, res) => {
             
             return {
                 ...obj,
-                thumbnail: thumbnail ? path.join(process.env.UPLOAD_URL, thumbnail) : null
+                thumbnail: thumbnail ? urlJoin(process.env.UPLOAD_URL, thumbnail) : null
             };
         }));
         console.log('data ', data);

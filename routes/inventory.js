@@ -3,7 +3,7 @@ var router = express.Router();
 const db = require('../config/database');
 const upload = require('../util/multerOptions');
 const fileService = require('../util/fileService');
-const path = require('path');
+const urlJoin = require('url-join');
 
 // Create Inventory (POST /inventory/create)
 router.post('/create', upload.single('image'), async function (req, res) {
@@ -41,7 +41,7 @@ router.get('/get', async function (req, res) {
 
     const data = {
       ...result[0],
-      image: primaryFile.filename ? path.join(process.env.UPLOAD_URL, primaryFile.filename) : null
+      image: primaryFile.filename ? urlJoin(process.env.UPLOAD_URL, primaryFile.filename) : null
     };
 
     res.json({ code: 0, msg: '', data });
@@ -62,7 +62,7 @@ router.get('/list', async function (req, res) {
       const primaryFile = await fileService.getPrimaryFile(item.id, 'inventory');
       return {
         ...item,
-        image: primaryFile.filename ? path.join(process.env.UPLOAD_URL, primaryFile.filename) : null
+        image: primaryFile.filename ? urlJoin(process.env.UPLOAD_URL, primaryFile.filename) : null
       };
     }));
 
