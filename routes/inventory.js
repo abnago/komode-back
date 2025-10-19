@@ -3,6 +3,7 @@ var router = express.Router();
 const db = require('../config/database');
 const upload = require('../util/multerOptions').default;
 const fileService = require('../util/fileService');
+const path = require('path');
 
 // Create Inventory (POST /inventory/create)
 router.post('/create', upload.single('image'), async function (req, res) {
@@ -37,11 +38,10 @@ router.get('/get', async function (req, res) {
 
     // Get primary file for this inventory
     const primaryFile = await fileService.getPrimaryFile(id, 'inventory');
-    const baseUrl = `${req.protocol}://${req.get("host")}`;
 
     const data = {
       ...result.results[0],
-      image: primaryFile ? `${baseUrl}${primaryFile.url}` : `${baseUrl}/uploads/default.png`
+      image: path.join(process.env.UPLOAD_URL, primaryFile.url)
     };
 
     res.json({ code: 0, msg: '', data });
@@ -56,16 +56,13 @@ router.get('/list', async function (req, res) {
   try {
     const userId = req.user.id;
     const result = await db.queryAsync('SELECT * FROM inventory_tb WHERE userId = ? ORDER BY id DESC', [userId]);
-    const baseUrl = `${req.protocol}://${req.get("host")}`;
 
     // Get primary files for each inventory and build response
     const data = await Promise.all(result.results.map(async (item) => {
       const primaryFile = await fileService.getPrimaryFile(item.id, 'inventory');
       return {
         ...item,
-        image: primaryFile
-          ? `${baseUrl}${primaryFile.url}`
-          : `${baseUrl}/uploads/default.png`
+        image: path.join(process.env.UPLOAD_URL, primaryFile.url)
       };
     }));
 

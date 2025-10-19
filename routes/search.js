@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 const db = require('../config/database');
 const fileService = require('../util/fileService');
+const path = require('path');
 
 router.post('/:inventoryId?', async (req, res) => {
     try {
@@ -9,16 +10,13 @@ router.post('/:inventoryId?', async (req, res) => {
         const userId = req.user.id;
         const inventoryId = req.params.inventoryId;
         let result;
-        console.log('value', value, 'inventoryId', inventoryId);
         
         // Search for objects
         result = await db.queryAsync(`
                 SELECT * FROM object_tb
                 WHERE userId = ? AND name LIKE ? ${inventoryId ? `AND inventoryId = ${inventoryId}` : ''}
                 ORDER BY id DESC`, [userId, `%${value}%`]);
-        
-        const baseUrl = `${req.protocol}://${req.get("host")}`;
-        
+            
         // Get thumbnail for each object and build response
         const data = await Promise.all(result.results.map(async (obj) => {
             const files = await fileService.getFiles(obj.id, 'object');
@@ -26,7 +24,7 @@ router.post('/:inventoryId?', async (req, res) => {
             
             return {
                 ...obj,
-                thumbnail: `${baseUrl}${thumbnail}`
+                thumbnail: path.join(process.env.UPLOAD_URL, thumbnail)
             };
         }));
         console.log('data ', data);

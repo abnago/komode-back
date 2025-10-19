@@ -3,6 +3,7 @@ var router = express.Router();
 const db = require('../config/database');
 const upload = require('../util/multerOptions').default;
 const fileService = require('../util/fileService');
+const path = require('path');
 
 // Create Object (POST /object/create)
 router.post('/create', upload.array('images', 5), async function(req, res) {
@@ -54,11 +55,10 @@ router.get('/get', async function(req, res) {
     
     // Get files for this object
     const files = await fileService.getFiles(id, 'object');
-    const baseUrl = `${req.protocol}://${req.get("host")}`;
     
     const data = {
       ...result.results[0],
-      images: files.map(file => `${baseUrl}${file.url}`)
+      images: files.map(file => path.join(process.env.UPLOAD_URL, file.url))
     };
     
     res.json({ code: 0, msg: '', data });
@@ -134,8 +134,6 @@ router.get('/list', async function(req, res) {
     
     const result = await db.queryAsync(query, params);
     
-    const baseUrl = `${req.protocol}://${req.get("host")}`;
-    
     // Get files for each object and build response
     const data = await Promise.all(result.results.map(async (obj) => {
       const files = await fileService.getFiles(obj.id, 'object');
@@ -143,8 +141,8 @@ router.get('/list', async function(req, res) {
       
       return {
         ...obj,
-        thumbnail: `${baseUrl}${thumbnail}`,
-        images: files.map(file => `${baseUrl}${file.url}`)
+        thumbnail: path.join(process.env.UPLOAD_URL, thumbnail),
+        images: files.map(file => path.join(process.env.UPLOAD_URL, file.url))
       };
     }));
     

@@ -3,7 +3,6 @@ require('dotenv').config();
 
 var express = require('express');
 var path = require('path');
-var cookieParser = require('cookie-parser');
 var cors = require('cors');
 
 // Import database connection
@@ -15,7 +14,6 @@ var shelfRouter = require('./routes/shelf');
 var searchRouter = require('./routes/search');
 var authRouter = require('./routes/auth');
 const { authenticateToken } = require('./middleware/auth');
-var { __dirname } = require("./util/multerOptions");
 
 var app = express();
 
@@ -24,9 +22,7 @@ app.use(cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
 
-app.use(express.static(path.join(__dirname, 'public')));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use('/inventory', authenticateToken, inventoryRouter);
