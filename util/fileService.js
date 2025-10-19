@@ -70,14 +70,14 @@ async function insertFiles(entityId, entityType, files, isPrimary = false) {
     const fileRecords = files.map((file, index) => ({
         entityId: entityId,
         entityType: entityType,
-        url: file.filename,
+        filename: file.filename,
         isPrimary: isPrimary && index === 0 // First file is primary for inventory
     }));
 
     const insertPromises = fileRecords.map(record =>
         db.queryAsync(
-            'INSERT INTO file_tb (entityId, entityType, url, isPrimary) VALUES (?, ?, ?, ?)',
-            [record.entityId, record.entityType, record.url, record.isPrimary]
+            'INSERT INTO file_tb (entityId, entityType, filename, isPrimary) VALUES (?, ?, ?, ?)',
+            [record.entityId, record.entityType, record.filename, record.isPrimary]
         )
     );
 
@@ -124,16 +124,16 @@ async function getPrimaryFile(entityId, entityType) {
 async function deleteFiles(fileIds) {
   if (!fileIds || fileIds.length === 0) return 0;
   
-  // First get the file URLs before deleting from database
+  // First get the filenames before deleting from database
   const placeholders = fileIds.map(() => '?').join(',');
   const filesResult = await db.queryAsync(
-    `SELECT url FROM file_tb WHERE id IN (${placeholders})`,
+    `SELECT filename FROM file_tb WHERE id IN (${placeholders})`,
     fileIds
   );
   
   // Delete files from disk
-  const fileUrls = filesResult.map(file => file.url);
-  await deleteFilesFromDisk(fileUrls);
+  const filenames = filesResult.map(file => file.filename);
+  await deleteFilesFromDisk(filenames);
   
   // Delete from database
   const result = await db.queryAsync(
@@ -144,21 +144,21 @@ async function deleteFiles(fileIds) {
 }
 
 /**
- * Delete files by URLs (for handling frontend deletions)
- * @param {Array} fileUrls - Array of file URLs to delete
+ * Delete files by filenames (for handling frontend deletions)
+ * @param {Array} filenames - Array of filenames to delete
  * @returns {Promise<number>} Number of deleted files
  */
-async function deleteFilesByUrls(fileUrls) {
-  if (!fileUrls || fileUrls.length === 0) return 0;
+async function deleteFilesByFilenames(filenames) {
+  if (!filenames || filenames.length === 0) return 0;
   
   // Delete files from disk first
-  await deleteFilesFromDisk(fileUrls);
+  await deleteFilesFromDisk(filenames);
   
   // Delete from database
-  const placeholders = fileUrls.map(() => '?').join(',');
+  const placeholders = filenames.map(() => '?').join(',');
   const result = await db.queryAsync(
-    `DELETE FROM file_tb WHERE url IN (${placeholders})`,
-    fileUrls
+    `DELETE FROM file_tb WHERE filename IN (${placeholders})`,
+    filenames
   );
   return result.affectedRows;
 }
@@ -170,15 +170,15 @@ async function deleteFilesByUrls(fileUrls) {
  * @returns {Promise<number>} Number of deleted files
  */
 async function deleteEntityFiles(entityId, entityType) {
-    // First get the file URLs before deleting from database
+    // First get the filenames before deleting from database
     const filesResult = await db.queryAsync(
-        'SELECT url FROM file_tb WHERE entityId = ? AND entityType = ?',
+        'SELECT filename FROM file_tb WHERE entityId = ? AND entityType = ?',
         [entityId, entityType]
     );
     
     // Delete files from disk
-    const fileUrls = filesResult.map(file => file.url);
-    await deleteFilesFromDisk(fileUrls);
+    const filenames = filesResult.map(file => file.filename);
+    await deleteFilesFromDisk(filenames);
     
     // Delete from database
     const result = await db.queryAsync(
@@ -192,19 +192,19 @@ async function deleteEntityFiles(entityId, entityType) {
  * Update primary file for an entity (for inventory)
  * @param {number} entityId - The ID of the entity
  * @param {string} entityType - The type of entity ('object' or 'inventory')
- * @param {string} newFileUrl - Filename of the new primary file
+ * @param {string} newFilename - Filename of the new primary file
  * @returns {Promise<Object>} Updated file record
  */
-async function updatePrimaryFile(entityId, entityType, newFileUrl) {
-    // First, get the old primary file URLs to delete them from disk
+async function updatePrimaryFile(entityId, entityType, newFilename) {
+    // First, get the old primary filenames to delete them from disk
     const oldFilesResult = await db.queryAsync(
-        'SELECT url FROM file_tb WHERE entityId = ? AND entityType = ? AND isPrimary = true',
+        'SELECT filename FROM file_tb WHERE entityId = ? AND entityType = ? AND isPrimary = true',
         [entityId, entityType]
     );
     
     // Delete old files from disk
-    const oldFileUrls = oldFilesResult.map(file => file.url);
-    await deleteFilesFromDisk(oldFileUrls);
+    const oldFilenames = oldFilesResult.map(file => file.filename);
+    await deleteFilesFromDisk(oldFilenames);
     
     // Set all files for this entity to not primary
     await db.queryAsync(
@@ -214,15 +214,15 @@ async function updatePrimaryFile(entityId, entityType, newFileUrl) {
 
     // Then insert the new primary file
     const result = await db.queryAsync(
-        'INSERT INTO file_tb (entityId, entityType, url, isPrimary) VALUES (?, ?, ?, true)',
-        [entityId, entityType, newFileUrl]
+        'INSERT INTO file_tb (entityId, entityType, filename, isPrimary) VALUES (?, ?, ?, true)',
+        [entityId, entityType, newFilename]
     );
 
     return {
         id: result.insertId,
         entityId: entityId,
         entityType: entityType,
-        url: newFileUrl,
+        filename: newFilename,
         isPrimary: true
     };
 }
@@ -232,7 +232,7 @@ module.exports = {
   getFiles,
   getPrimaryFile,
   deleteFiles,
-  deleteFilesByUrls,
+  deleteFilesByFilenames,
   deleteEntityFiles,
   updatePrimaryFile
 };

@@ -58,7 +58,7 @@ router.get('/get', async function(req, res) {
     
     const data = {
       ...result[0],
-      images: files.map(file => path.join(process.env.UPLOAD_URL, file.url))
+      images: files.map(file => path.join(process.env.UPLOAD_URL, file.filename))
     };
     
     res.json({ code: 0, msg: '', data });
@@ -137,12 +137,12 @@ router.get('/list', async function(req, res) {
     // Get files for each object and build response
     const data = await Promise.all(result.map(async (obj) => {
       const files = await fileService.getFiles(obj.id, 'object');
-      const thumbnail = files[files.length - 1].url;
+      const thumbnail = files[files.length - 1].filename;
       
       return {
         ...obj,
         thumbnail: path.join(process.env.UPLOAD_URL, thumbnail),
-        images: files.map(file => path.join(process.env.UPLOAD_URL, file.url))
+        images: files.map(file => path.join(process.env.UPLOAD_URL, file.filename))
       };
     }));
     
@@ -185,10 +185,10 @@ router.put('/update', upload.array('images', 5), async function(req, res) {
     
     // Handle file deletions
     if (deletedImages && deletedImages.length > 0) {
-      // Parse deletedImages to get file URLs
-      const deletedFileUrls = JSON.parse(deletedImages);
-      if (deletedFileUrls.length > 0) {
-        await fileService.deleteFilesByUrls(deletedFileUrls);
+      // Parse deletedImages to get filenames
+      const deletedFilenames = JSON.parse(deletedImages);
+      if (deletedFilenames.length > 0) {
+        await fileService.deleteFilesByFilenames(deletedFilenames);
       }
     }
     
