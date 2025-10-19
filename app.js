@@ -4,14 +4,10 @@ require('dotenv').config();
 var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
-var session = require('express-session');
 var cors = require('cors');
 
 // Import database connection
 const db = require('./config/database');
-
-// Import passport configuration
-const { passport } = require('./config/passport');
 
 var inventoryRouter = require('./routes/inventory');
 var objectRouter = require('./routes/object');
@@ -24,28 +20,11 @@ var { __dirname } = require("./util/multerOptions");
 var app = express();
 
 // CORS configuration - completely disabled (allows all origins)
-app.use(cors({
-  origin: '*',
-  credentials: false,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-
-// Session configuration
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-session-secret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false } // Set to true in production with HTTPS
-}));
-
-// Initialize Passport
-app.use(passport.initialize());
-app.use(passport.session());
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

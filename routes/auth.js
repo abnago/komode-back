@@ -1,39 +1,33 @@
 const express = require('express');
-const passport = require('passport');
-const { generateToken } = require('../config/passport');
+const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const userService = require('../services/userService');
 const router = express.Router();
 
 const webClient = new OAuth2Client({
-  clientId: process.env.GOOGLE_CLIENT_ID, // <— correct way
+  clientId: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET, // optional for ID token verification
 });
 
-// Google OAuth login
-router.get('/google',
-  passport.authenticate('google', {
-    scope: ['profile', 'email']
-  })
-);
-
-// Google OAuth callback
-router.get('/google/callback',
-  passport.authenticate('google', { failureRedirect: '/login' }),
-  (req, res) => {
-    try {
-      // Generate JWT token
-      const token = generateToken(req.user);
-
-      // Redirect to frontend with token
-      const frontendUrl = process.env.FRONTEND_URL;
-      res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
-    } catch (error) {
-      console.error(67154, error);
-      res.json({code: 7, msg: "Internal server error"});
-    }
+// Generate JWT token
+const generateToken = (user) => {
+  try {
+    return jwt.sign(
+      { 
+        id: user.id, // Database user ID
+        googleId: user.googleId,
+        email: user.email, 
+        name: user.name,
+        lastSeen: user.lastSeen
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+  } catch (error) {
+    console.error(67173, error);
+    throw error;
   }
-);
+};
 
 router.post('/google/verify', async (req, res) => {
   try {
@@ -92,13 +86,9 @@ router.post('/google/verify', async (req, res) => {
 // Logout
 router.post('/logout', (req, res) => {
   try {
-    req.logout((err) => {
-      if (err) {
-        console.error(67155, err);
-        return res.json({code: 7, msg: "Internal server error"});
-      }
-      res.json({ message: 'Logged out successfully' });
-    });
+    // With JWT-only authentication, logout is handled client-side
+    // The client should remove the token from storage
+    res.json({ code: 0, message: 'Logged out successfully' });
   } catch (error) {
     console.error(67156, error);
     res.json({code: 7, msg: "Internal server error"});
@@ -111,15 +101,14 @@ router.get('/verify', (req, res) => {
     const token = req.headers.authorization?.replace('Bearer ', '');
 
     if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+      return res.status(401).json({ code: 1, error: 'No token provided' });
     }
 
-    const jwt = require('jsonwebtoken');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    res.json({ valid: true, user: decoded });
+    res.json({ code: 0, valid: true, user: decoded });
   } catch (error) {
     console.error(67157, error);
-    res.json({code: 7, msg: "Internal server error"});
+    res.status(401).json({code: 7, msg: "Token verification failed"});
   }
 });
 
