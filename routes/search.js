@@ -24,7 +24,7 @@ router.post('/:inventoryId?', async (req, res) => {
             
             return {
                 ...obj,
-                thumbnail: path.join(process.env.UPLOAD_URL, thumbnail)
+                thumbnail: thumbnail ? path.join(process.env.UPLOAD_URL, thumbnail) : null
             };
         }));
         console.log('data ', data);

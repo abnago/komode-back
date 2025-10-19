@@ -58,7 +58,7 @@ router.get('/get', async function(req, res) {
     
     const data = {
       ...result[0],
-      images: files.map(file => path.join(process.env.UPLOAD_URL, file.filename))
+      images: files[0] ? files.map(file => file.filename ? path.join(process.env.UPLOAD_URL, file.filename) : null) : []
     };
     
     res.json({ code: 0, msg: '', data });
@@ -141,8 +141,8 @@ router.get('/list', async function(req, res) {
       
       return {
         ...obj,
-        thumbnail: path.join(process.env.UPLOAD_URL, thumbnail),
-        images: files.map(file => path.join(process.env.UPLOAD_URL, file.filename))
+        thumbnail: thumbnail ? path.join(process.env.UPLOAD_URL, thumbnail) : null,
+        images: files.map(file => file.filename ? path.join(process.env.UPLOAD_URL, file.filename) : null)
       };
     }));
     

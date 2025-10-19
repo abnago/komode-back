@@ -109,11 +109,9 @@ class UserService {
       if (user) {
         // User exists, update lastSeen and optionally name/googleId
         user = await this.updateLastSeen(email, name, googleId);
-        console.log(`Updated lastSeen for existing user: ${email}`);
       } else {
         // User doesn't exist, create new user
         user = await this.create(email, name, googleId);
-        console.log(`Created new user: ${email}`);
       }
       
       return user;
