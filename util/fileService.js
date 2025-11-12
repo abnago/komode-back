@@ -1,12 +1,7 @@
-var db = require('../config/database');
 var fs = require('fs');
 var path = require('path');
+const db = require('../config/database');
 
-/**
- * Delete a file from the uploads folder
- * @param {string} filename - The filename (e.g., "filename.jpg")
- * @returns {Promise<boolean>} True if file was deleted, false if file didn't exist or couldn't be deleted
- */
 async function deleteFileFromDisk(filename) {
   try {
     // Security check: ensure the filename doesn't contain path traversal
@@ -31,10 +26,9 @@ async function deleteFileFromDisk(filename) {
     // Check if file exists
     if (fs.existsSync(absolutePath)) {
       fs.unlinkSync(absolutePath);
-      console.log(`Deleted file: ${absolutePath}`);
       return true;
     } else {
-      console.log(`File not found: ${absolutePath}`);
+      console.error(`File not found: ${absolutePath}`);
       return false;
     }
   } catch (error) {
@@ -43,27 +37,19 @@ async function deleteFileFromDisk(filename) {
   }
 }
 
-/**
- * Delete multiple files from the uploads folder
- * @param {Array} filenames - Array of filenames
- * @returns {Promise<number>} Number of files successfully deleted
- */
 async function deleteFilesFromDisk(filenames) {
   if (!filenames || filenames.length === 0) return 0;
   
-  const deletePromises = filenames.map(filename => deleteFileFromDisk(filename));
-  const results = await Promise.all(deletePromises);
-  return results.filter(result => result === true).length;
+  let deletedCount = 0;
+  for (const filename of filenames) {
+    const result = await deleteFileFromDisk(filename);
+    if (result === true) {
+      deletedCount++;
+    }
+  }
+  return deletedCount;
 }
 
-/**
- * Insert files into file_tb
- * @param {number} entityId - The ID of the entity (object or inventory)
- * @param {string} entityType - The type of entity ('object' or 'inventory')
- * @param {Array} files - Array of file objects from multer
- * @param {boolean} isPrimary - Whether this is the primary file (for inventory)
- * @returns {Promise<Array>} Array of inserted file records
- */
 async function insertFiles(entityId, entityType, files, isPrimary = false) {
     if (!files || files.length === 0) return [];
 
@@ -74,26 +60,20 @@ async function insertFiles(entityId, entityType, files, isPrimary = false) {
         isPrimary: isPrimary && index === 0 // First file is primary for inventory
     }));
 
-    const insertPromises = fileRecords.map(record =>
-        db.queryAsync(
+    const insertedRecords = [];
+    for (const record of fileRecords) {
+        const result = await db.queryAsync(
             'INSERT INTO file_tb (entityId, entityType, filename, isPrimary) VALUES (?, ?, ?, ?)',
             [record.entityId, record.entityType, record.filename, record.isPrimary]
-        )
-    );
-
-    const results = await Promise.all(insertPromises);
-    return results.map((result, index) => ({
-        id: result.insertId,
-        ...fileRecords[index]
-    }));
+        );
+        insertedRecords.push({
+            id: result.insertId,
+            ...record
+        });
+    }
+    return insertedRecords;
 }
 
-/**
- * Get files for an entity
- * @param {number} entityId - The ID of the entity
- * @param {string} entityType - The type of entity ('object' or 'inventory')
- * @returns {Promise<Array>} Array of file records
- */
 async function getFiles(entityId, entityType) {
     const result = await db.queryAsync(
         'SELECT * FROM file_tb WHERE entityId = ? AND entityType = ? ORDER BY isPrimary DESC, id ASC',
@@ -102,12 +82,6 @@ async function getFiles(entityId, entityType) {
     return result;
 }
 
-/**
- * Get primary file for an entity (for inventory)
- * @param {number} entityId - The ID of the entity
- * @param {string} entityType - The type of entity ('object' or 'inventory')
- * @returns {Promise<Object|null>} Primary file record or null
- */
 async function getPrimaryFile(entityId, entityType) {
     const result = await db.queryAsync(
         'SELECT * FROM file_tb WHERE entityId = ? AND entityType = ? AND isPrimary = true LIMIT 1',
@@ -116,11 +90,6 @@ async function getPrimaryFile(entityId, entityType) {
     return result.length > 0 ? result[0] : null;
 }
 
-/**
- * Delete files by IDs
- * @param {Array} fileIds - Array of file IDs to delete
- * @returns {Promise<number>} Number of deleted files
- */
 async function deleteFiles(fileIds) {
   if (!fileIds || fileIds.length === 0) return 0;
   
@@ -143,11 +112,6 @@ async function deleteFiles(fileIds) {
   return result.affectedRows;
 }
 
-/**
- * Delete files by filenames (for handling frontend deletions)
- * @param {Array} filenames - Array of filenames to delete
- * @returns {Promise<number>} Number of deleted files
- */
 async function deleteFilesByFilenames(filenames) {
   if (!filenames || filenames.length === 0) return 0;
   
@@ -163,12 +127,6 @@ async function deleteFilesByFilenames(filenames) {
   return result.affectedRows;
 }
 
-/**
- * Delete all files for an entity
- * @param {number} entityId - The ID of the entity
- * @param {string} entityType - The type of entity ('object' or 'inventory')
- * @returns {Promise<number>} Number of deleted files
- */
 async function deleteEntityFiles(entityId, entityType) {
     // First get the filenames before deleting from database
     const filesResult = await db.queryAsync(
@@ -188,13 +146,6 @@ async function deleteEntityFiles(entityId, entityType) {
     return result.affectedRows;
 }
 
-/**
- * Update primary file for an entity (for inventory)
- * @param {number} entityId - The ID of the entity
- * @param {string} entityType - The type of entity ('object' or 'inventory')
- * @param {string} newFilename - Filename of the new primary file
- * @returns {Promise<Object>} Updated file record
- */
 async function updatePrimaryFile(entityId, entityType, newFilename) {
     // First, get the old primary filenames to delete them from disk
     const oldFilesResult = await db.queryAsync(

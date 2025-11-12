@@ -37,7 +37,7 @@ app.use('/auth', authRouter);
 // Global error handler
 app.use((err, req, res, next) => {
   console.error(67180, err);
-  res.json({code: 7, msg: "Internal server error"});
+  return res.json({code: 7, msg: "Internal server error"});
 });
 
 // Test database connection on startup

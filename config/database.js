@@ -1,4 +1,5 @@
 const mysql = require('mysql2');
+const util = require('util');
 
 // Database configuration
 const dbConfig = {
@@ -15,77 +16,28 @@ const dbConfig = {
 // Create connection pool
 const pool = mysql.createPool(dbConfig);
 
-// Create a promise-based wrapper for the pool
-const db = {
-  // Execute a query and return a promise
-  queryAsync: (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      try {
-        pool.execute(sql, params, (err, results, fields) => {
-          if (err) {
-            console.error(67174, err);
-            reject(err);
-          } else {
-            resolve(results);
-          }
-        });
-      } catch (error) {
-        console.error(67175, error);
-        reject(error);
-      }
-    });
-  },
+if(process.env.LOG_MYSQL_QUERIES && (process.env.LOG_MYSQL_QUERIES == "true" || process.env.LOG_MYSQL_QUERIES == "1")) {
+  const originalQuery = pool.query;
+  console.log( pool.query)
+  pool.query = function (...args) {
+    const query = mysql.format(args[0], args[1]);
+    console.log('\x1b[33mExecuting query: %s\x1b[0m', query);
 
-  // Get a connection from the pool
-  getConnection: () => {
-    return new Promise((resolve, reject) => {
-      try {
-        pool.getConnection((err, connection) => {
-          if (err) {
-            console.error(67176, err);
-            reject(err);
-          } else {
-            resolve(connection);
-          }
-        });
-      } catch (error) {
-        console.error(67177, error);
-        reject(error);
-      }
-    });
-  },
-
-  // Close the connection pool
-  close: () => {
-    return new Promise((resolve) => {
-      try {
-        pool.end(() => {
-          resolve();
-        });
-      } catch (error) {
-        console.error(67178, error);
-        resolve(); // Still resolve to prevent hanging
-      }
-    });
-  },
-
-  // Get pool statistics
-  getPoolStats: () => {
-    try {
-      return {
-        totalConnections: pool._allConnections.length,
-        freeConnections: pool._freeConnections.length,
-        acquiringConnections: pool._acquiringConnections.length
-      };
-    } catch (error) {
-      console.error(67179, error);
-      return {
-        totalConnections: 0,
-        freeConnections: 0,
-        acquiringConnections: 0
+    const start = Date.now();
+    const callback = args[args.length - 1];
+    if (typeof callback === 'function') {
+      args[args.length - 1] = function (...callbackArgs) {
+        const duration = Date.now() - start;
+        console.log('\x1b[33m%s\x1b[0m', `Executed in ${duration}ms`);
+        console.log('-------------------------------------------------------')
+        callback.apply(this, callbackArgs);
       };
     }
-  }
-};
 
-module.exports = db;
+    return originalQuery.apply(pool, args);
+  };
+}
+
+pool.queryAsync = util.promisify(pool.query);
+
+module.exports = pool;

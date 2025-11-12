@@ -7,24 +7,28 @@ const fileService = require('../util/fileService');
 router.post('/create', async function(req, res) {
   try {
     const { name, description, inventoryId } = req.body || {};
-    if (!name) return res.json({ code: 1, msg: 'name is required', data: null });
-    if (!inventoryId) return res.json({ code: 1, msg: 'inventoryId is required', data: null });
+    if (!name) {
+      return res.json({ code: 1, msg: 'name is required', data: null });
+    }
+    if (!inventoryId) {
+      return res.json({ code: 1, msg: 'inventoryId is required', data: null });
+    }
     const userId = req.user.id;
     
     // Verify that the inventory belongs to the user
-    const inventoryCheck = await db.queryAsync('SELECT id FROM inventory_tb WHERE id = ? AND userId = ?', [inventoryId, userId]);
+    const inventoryCheck = await db.queryAsync('SELECT id FROM inventory_tb WHERE id = ? AND userId = ? AND deleted = 0', [inventoryId, userId]);
     if (!inventoryCheck.length) {
-      return res.json({ code: 1, msg: 'inventory not found or access denied', data: null });
+      return res.json({ code: 1, msg: 'inventory not found', data: null });
     }
     
     // Insert shelf
     const result = await db.queryAsync('INSERT INTO shelf_tb (name, description, inventoryId, userId) VALUES (?, ?, ?, ?)', [name, description || null, inventoryId, userId]);
     const shelfId = result.insertId;
     
-    res.json({ code: 0, msg: '', data: { id: shelfId } });
+    return res.json({ code: 0, msg: '', data: { id: shelfId } });
   } catch (err) {
     console.error(67170, err);
-    res.json({code: 7, msg: "Internal server error"});
+    return res.json({code: 7, msg: "Internal server error"});
   }
 });
 
@@ -32,15 +36,19 @@ router.post('/create', async function(req, res) {
 router.get('/get', async function(req, res) {
   try {
     const { id } = req.query || {};
-    if (!id) return res.json({ code: 1, msg: 'id is required', data: null });
+    if (!id) {
+      return res.json({ code: 1, msg: 'id is required', data: null });
+    }
     const userId = req.user.id;
     const result = await db.queryAsync('SELECT * FROM shelf_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!result.length) return res.json({ code: 1, msg: 'not found', data: null });
+    if (!result.length) {
+      return res.json({ code: 1, msg: 'not found', data: null });
+    }
     
-    res.json({ code: 0, msg: '', data: result[0] });
+    return res.json({ code: 0, msg: '', data: result[0] });
   } catch (err) {
     console.error(67171, err);
-    res.json({code: 7, msg: "Internal server error"});
+    return res.json({code: 7, msg: "Internal server error"});
   }
 });
 
@@ -48,14 +56,18 @@ router.get('/get', async function(req, res) {
 router.get('/inventory', async function(req, res) {
   try {
     const { id } = req.query || {};
-    if (!id) return res.json({ code: 1, msg: 'id is required', data: null });
+    if (!id) {
+      return res.json({ code: 1, msg: 'id is required', data: null });
+    }
     const userId = req.user.id;
-    const result = await db.queryAsync('SELECT * FROM inventory_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!result.length) return res.json({ code: 1, msg: 'inventory not found or access denied', data: null });
-    res.json({ code: 0, msg: '', data: result[0] });
+    const result = await db.queryAsync('SELECT * FROM inventory_tb WHERE id = ? AND userId = ? AND deleted = 0', [id, userId]);
+    if (!result.length) {
+      return res.json({ code: 1, msg: 'inventory not found', data: null });
+    }
+    return res.json({ code: 0, msg: '', data: result[0] });
   } catch (err) {
     console.error(67172, err);
-    res.json({code: 7, msg: "Internal server error"});
+    return res.json({code: 7, msg: "Internal server error"});
   }
 });
 
@@ -63,14 +75,16 @@ router.get('/inventory', async function(req, res) {
 router.get('/list', async function(req, res) {
   try {
     const { inventoryId } = req.query || {};
-    if (!inventoryId) return res.json({ code: 1, msg: 'inventoryId is required', data: null });
+    if (!inventoryId) {
+      return res.json({ code: 1, msg: 'inventoryId is required', data: null });
+    }
     
     const userId = req.user.id;
     
     // Verify that the inventory belongs to the user
-    const inventoryCheck = await db.queryAsync('SELECT id FROM inventory_tb WHERE id = ? AND userId = ?', [inventoryId, userId]);
+    const inventoryCheck = await db.queryAsync('SELECT id FROM inventory_tb WHERE id = ? AND userId = ? AND deleted = 0', [inventoryId, userId]);
     if (!inventoryCheck.length) {
-      return res.json({ code: 1, msg: 'inventory not found or access denied', data: null });
+      return res.json({ code: 1, msg: 'inventory not found', data: null });
     }
     
     const result = await db.queryAsync(`
@@ -78,10 +92,10 @@ router.get('/list', async function(req, res) {
       WHERE userId = ? AND inventoryId = ?
       ORDER BY id DESC`, [userId, inventoryId]);
     
-    res.json({ code: 0, msg: '', data: result });
+    return res.json({ code: 0, msg: '', data: result });
   } catch (err) {
     console.error(67173, err);
-    res.json({code: 7, msg: "Internal server error"});
+    return res.json({code: 7, msg: "Internal server error"});
   }
 });
 
@@ -89,13 +103,15 @@ router.get('/list', async function(req, res) {
 router.post('/update', async function(req, res) {
   try {
     const { id, name, description } = req.body || {};
-    if (!id) return res.json({ code: 1, msg: 'id is required', data: null });
+    if (!id) {
+      return res.json({ code: 1, msg: 'id is required', data: null });
+    }
     const userId = req.user.id;
     
     // Check if shelf exists and belongs to user
     const shelfCheck = await db.queryAsync('SELECT id FROM shelf_tb WHERE id = ? AND userId = ?', [id, userId]);
     if (!shelfCheck.length) {
-      return res.json({ code: 1, msg: 'not found or access denied', data: null });
+      return res.json({ code: 1, msg: 'not found', data: null });
     }
     
     const fields = [];
@@ -112,10 +128,10 @@ router.post('/update', async function(req, res) {
     const sql = `UPDATE shelf_tb SET ${fields.join(', ')} WHERE id = ? AND userId = ?`;
     await db.queryAsync(sql, params);
     
-    res.json({ code: 0, msg: '', data: { id } });
+    return res.json({ code: 0, msg: '', data: { id } });
   } catch (err) {
     console.error(67174, err);
-    res.json({code: 7, msg: "Internal server error"});
+    return res.json({code: 7, msg: "Internal server error"});
   }
 });
 
@@ -123,13 +139,15 @@ router.post('/update', async function(req, res) {
 router.post('/delete', async function(req, res) {
   try {
     const { id } = req.body || {};
-    if (!id) return res.json({ code: 1, msg: 'id is required', data: null });
+    if (!id) {
+      return res.json({ code: 1, msg: 'id is required', data: null });
+    }
     const userId = req.user.id;
     
     // Check if shelf exists and belongs to user
     const shelfCheck = await db.queryAsync('SELECT id FROM shelf_tb WHERE id = ? AND userId = ?', [id, userId]);
     if (!shelfCheck.length) {
-      return res.json({ code: 1, msg: 'not found or access denied', data: null });
+      return res.json({ code: 1, msg: 'not found', data: null });
     }
     
     // Get all objects in this shelf
@@ -144,12 +162,12 @@ router.post('/delete', async function(req, res) {
     // Delete the shelf
     const result = await db.queryAsync('DELETE FROM shelf_tb WHERE id = ? AND userId = ?', [id, userId]);
     if (result.affectedRows === 0) {
-      return res.json({ code: 1, msg: 'not found or access denied', data: null });
+      return res.json({ code: 1, msg: 'not found', data: null });
     }
-    res.json({ code: 0, msg: '', data: { id } });
+    return res.json({ code: 0, msg: '', data: { id } });
   } catch (err) {
     console.error(67175, err);
-    res.json({code: 7, msg: "Internal server error"});
+    return res.json({code: 7, msg: "Internal server error"});
   }
 });
 

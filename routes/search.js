@@ -5,34 +5,81 @@ const fileService = require('../util/fileService');
 const urlJoin = require('url-join').default;
 
 router.post('/:inventoryId?', async (req, res) => {
-    try {
-        const { value } = req.body || {};
-        const userId = req.user.id;
-        const inventoryId = req.params.inventoryId;
-        let result;
-        
-        // Search for objects
-        result = await db.queryAsync(`
-                SELECT * FROM object_tb
-                WHERE userId = ? AND name LIKE ? ${inventoryId ? `AND inventoryId = ${inventoryId}` : ''}
-                ORDER BY id DESC`, [userId, `%${value}%`]);
-            
-        // Get thumbnail for each object and build response
-        const data = await Promise.all(result.map(async (obj) => {
-            const files = await fileService.getFiles(obj.id, 'object');
-            const thumbnail = files[files.length - 1]?.filename;
-            
-            return {
-                ...obj,
-                thumbnail: thumbnail ? urlJoin(process.env.UPLOAD_URL, thumbnail) : null
-            };
-        }));
-        console.log('data ', data);
-        res.json({ code: 0, msg: '', data });
-    } catch (err) {
-        console.error(67190, err);
-        res.json({ code: 7, msg: "Internal server error" });
+  try {
+    const { value } = req.body || {};
+    const userId = req.user.id;
+    const inventoryId = req.params.inventoryId;
+
+    if (!value || !value.trim()) {
+      return res.json({ code: 0, msg: '', data: { inventories: [], shelves: [], objects: [] } });
     }
+    
+    // Minimum 3 characters required for search
+    if (value.trim().length < 3) {
+      return res.json({ code: 1, msg: 'Search query must be at least 3 characters', data: { inventories: [], shelves: [], objects: [] } });
+    }
+    
+    const searchPattern = `%${value.toLowerCase()}%`;
+    
+    // Search for inventories (limit 5)
+    let inventories = undefined;
+    if(inventoryId) {
+      const hasAccess = await db.queryAsync(`
+        SELECT 1 FROM inventory_tb
+        WHERE id = ? AND userId = ? AND deleted = 0
+      `, [inventoryId, userId]);
+      if(!hasAccess[0]) {
+        return res.json({ code: 1, msg: 'Inventory not found', data: { inventories, shelves: [], objects: [] } });
+      }
+    } else {
+      inventories = await db.queryAsync(`
+        SELECT * FROM inventory_tb
+        WHERE userId = ? AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ?) AND deleted = 0
+        ORDER BY id DESC
+        LIMIT 5
+      `, [userId, searchPattern, searchPattern]);
+    }
+    
+    // Search for shelves
+    const shelves = await db.queryAsync(`
+      SELECT * FROM shelf_tb
+      WHERE userId = ? AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ?)
+      ORDER BY id DESC
+      LIMIT 5
+    `, [userId, searchPattern, searchPattern]);
+    
+    // Search for objects (limit 5)
+    const objects = await db.queryAsync(`
+      SELECT * FROM object_tb
+      WHERE userId = ? AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ?)
+      ORDER BY id DESC
+      LIMIT 5
+    `, [userId, searchPattern, searchPattern]);
+        
+    // Get thumbnail for each object
+    const objectsWithThumbnails = [];
+    for (const obj of objects) {
+      const files = await fileService.getFiles(obj.id, 'object');
+      const thumbnail = files[files.length - 1]?.filename;
+
+      objectsWithThumbnails.push({
+        ...obj,
+        thumbnail: thumbnail ? urlJoin(process.env.UPLOAD_URL, thumbnail) : null
+      });
+    }
+    
+    return res.json({ 
+      code: 0, 
+      data: {
+        inventories,
+        shelves,
+        objects: objectsWithThumbnails
+      }
+    });
+  } catch (err) {
+    console.error(67190, err);
+    return res.json({ code: 7, msg: "Internal server error" });
+  }
 });
 
 module.exports = router;

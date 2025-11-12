@@ -21,7 +21,7 @@ const authenticateToken = (req, res, next) => {
     });
   } catch (error) {
     console.error(67169, error);
-    res.json({code: 7, msg: "Internal server error"});
+    return res.json({code: 7, msg: "Internal server error"});
   }
 };
 
