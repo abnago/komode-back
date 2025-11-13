@@ -51,10 +51,10 @@ router.post('/:inventoryId?', async (req, res) => {
     // Search for objects (limit 5)
     const objects = await db.queryAsync(`
       SELECT * FROM object_tb
-      WHERE userId = ? AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ?)
+      WHERE userId = ? AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ? OR barcode = ?)
       ORDER BY id DESC
       LIMIT 5
-    `, [userId, searchPattern, searchPattern]);
+    `, [userId, searchPattern, searchPattern, value]);
         
     // Get thumbnail for each object
     const objectsWithThumbnails = [];

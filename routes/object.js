@@ -8,7 +8,8 @@ const urlJoin = require('url-join').default;
 // Create Object (POST /object/create)
 router.post('/create', upload.array('images', 5), async function(req, res) {
   try {
-    const { name, description, quantity, inventoryId, shelfId } = req.body || {};
+    const body = req.body || {};
+    const { name, description, quantity, inventoryId, shelfId, barcode } = body;
     if (!name) {
       return res.json({ code: 1, msg: 'name is required', data: null });
     }
@@ -19,6 +20,16 @@ router.post('/create', upload.array('images', 5), async function(req, res) {
       return res.json({ code: 1, msg: 'quantity is required', data: null });
     }
     const userId = req.user.id;
+
+    if (barcode) {
+      const barcodeExists = await db.queryAsync(
+        'SELECT id FROM object_tb WHERE userId = ? AND barcode = ?',
+        [userId, barcode]
+      );
+      if (barcodeExists.length) {
+        return res.json({ code: 1, msg: 'barcode already exists', data: null });
+      }
+    }
     
     // Verify that the inventory belongs to the user
     const inventoryCheck = await db.queryAsync('SELECT id FROM inventory_tb WHERE id = ? AND userId = ? AND deleted = 0', [inventoryId, userId]);
@@ -35,7 +46,10 @@ router.post('/create', upload.array('images', 5), async function(req, res) {
     }
     
     // Insert object without images column
-    const result = await db.queryAsync('INSERT INTO object_tb (name, description, quantity, userId, inventoryId, shelfId) VALUES (?, ?, ?, ?, ?, ?)', [name, description || null, quantity, userId, inventoryId, shelfId || null]);
+    const result = await db.queryAsync(
+      'INSERT INTO object_tb (name, description, quantity, barcode, userId, inventoryId, shelfId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, description, quantity, barcode, userId, inventoryId, shelfId]
+    );
     const objectId = result.insertId;
     
     // Handle file uploads
@@ -183,7 +197,8 @@ router.get('/list', async function(req, res) {
 // Update Object (POST /object/update)
 router.put('/update', upload.array('images', 5), async function(req, res) {
   try {
-    const { id, name, description, quantity, shelfId, deletedImages } = req.body || {};
+    const body = req.body || {};
+    const { id, name, description, quantity, shelfId, deletedImages, barcode } = body;
     if (!id) {
       return res.json({ code: 1, msg: 'id is required', data: null });
     }
@@ -200,6 +215,16 @@ router.put('/update', upload.array('images', 5), async function(req, res) {
       const shelfCheck = await db.queryAsync('SELECT id FROM shelf_tb WHERE id = ? AND userId = ? AND inventoryId = ?', [shelfId, userId, objectCheck[0].inventoryId]);
       if (!shelfCheck.length) {
         return res.json({ code: 1, msg: 'shelf not found', data: null });
+      }
+    }
+
+    if (barcode) {
+      const existingBarcode = await db.queryAsync(
+        'SELECT id FROM object_tb WHERE userId = ? AND barcode = ? AND id <> ?',
+        [userId, barcode, id]
+      );
+      if (existingBarcode.length) {
+        return res.json({ code: 1, msg: 'barcode already exists', data: null });
       }
     }
     
@@ -227,7 +252,8 @@ router.put('/update', upload.array('images', 5), async function(req, res) {
       name: name,
       description: description,
       quantity: quantity,
-      shelfId: shelfId || null
+      shelfId: shelfId || null,
+      barcode: barcode || null
     };
     
     await db.queryAsync(`UPDATE object_tb SET ? WHERE id = ? AND userId = ?`, [updateObj, id, userId]);
