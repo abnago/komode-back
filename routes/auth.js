@@ -5,6 +5,7 @@ const { authenticateToken } = require('../middleware/auth');
 const upload = require('../util/multerOptions');
 const router = express.Router();
 const db = require('../config/database');
+const urlJoin = require('url-join').default;
 
 const webClient = new OAuth2Client({
   clientId: process.env.GOOGLE_CLIENT_ID,
@@ -130,6 +131,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
       code: 0,
       data: {
         id: user[0].id,
+        profilePic: user[0].profilePic ? urlJoin(process.env.UPLOAD_URL, user[0].profilePic) : null,
         email: user[0].email,
         name: user[0].name,
         googleId: user[0].googleId,
