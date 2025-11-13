@@ -172,6 +172,7 @@ async function upsert(email, name, googleId) {
       [email]
     );
     
+    let userID;
     if (user[0]) {
       // User exists, update lastSeen and optionally name/googleId
       let updateObj = { lastSeen: new Date() };
@@ -184,17 +185,19 @@ async function upsert(email, name, googleId) {
       }
       
       await db.queryAsync(`UPDATE user_tb SET ? WHERE id = ?`, [updateObj, user[0].id]);
+      userID = user[0].id;
     } else {
       // User doesn't exist, create new user with name parsing
-      await db.queryAsync(
+      const inserted = await db.queryAsync(
         'INSERT INTO user_tb (email, name, googleId, lastSeen) VALUES (?, ?, ?, NOW())',
         [email, name, googleId]
       );
+      userID = inserted.insertId;
     }
     
     const result = await db.queryAsync(
       'SELECT * FROM user_tb WHERE id = ?',
-      [user[0].id]
+      [userID]
     );
     return result[0]
   } catch (error) {
