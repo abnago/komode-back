@@ -295,6 +295,36 @@ router.delete('/delete', async function(req, res) {
   }
 });
 
+// Suggest objects for autocomplete (GET /object/suggest?term=)
+router.get('/suggest', async function(req, res) {
+  try {
+    const { term } = req.query || {};
+    const rawTerm = typeof term === 'string' ? term.trim() : '';
+    if (!rawTerm || rawTerm.length < 3) {
+      return res.json({ code: 1, msg: 'term must be at least 3 characters' });
+    }
+
+    const userId = req.user.id;
+    const likeTerm = `${rawTerm}%`;
+
+    const results = await db.queryAsync(
+      `
+        SELECT id, name, description, barcode, inventoryId, shelfId
+        FROM object_tb
+        WHERE userId = ? AND name LIKE ?
+        ORDER BY id DESC
+        LIMIT 1
+      `,
+      [userId, likeTerm]
+    );
+
+    return res.json({ code: 0, data: { suggestion: results[0] } });
+  } catch (err) {
+    console.error('Object suggest error:', err);
+    return res.json({code: 7, msg: "Internal server error"});
+  }
+});
+
 module.exports = router;
 
 
