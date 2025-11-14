@@ -62,7 +62,7 @@ router.get('/get', async function(req, res) {
       return res.json({ code: 1, msg: 'id is required', data: null });
     }
     const userId = req.user.id;
-    const result = await db.queryAsync('SELECT * FROM object_tb WHERE id = ? AND userId = ?', [id, userId]);
+    const result = await db.queryAsync('SELECT * FROM object_tb WHERE id = ? AND userId = ? AND deleted = 0', [id, userId]);
     if (!result.length) {
       return res.json({ code: 1, msg: 'not found', data: null });
     }
@@ -152,7 +152,7 @@ router.get('/list', async function(req, res) {
     
     let query = `
       SELECT * FROM object_tb
-      WHERE userId = ? AND inventoryId = ?`;
+      WHERE userId = ? AND inventoryId = ? AND deleted = 0`;
     let params = [userId, inventoryId];
     
     if (shelfId) {
@@ -195,7 +195,7 @@ router.put('/update', upload.array('images', 5), async function(req, res) {
     const userId = req.user.id;
     
     // Check if object exists and belongs to user
-    const objectCheck = await db.queryAsync('SELECT id, inventoryId FROM object_tb WHERE id = ? AND userId = ?', [id, userId]);
+    const objectCheck = await db.queryAsync('SELECT id, inventoryId FROM object_tb WHERE id = ? AND userId = ? AND deleted = 0', [id, userId]);
     if (!objectCheck.length) {
       return res.json({ code: 1, msg: 'not found', data: null });
     }
@@ -236,7 +236,7 @@ router.put('/update', upload.array('images', 5), async function(req, res) {
       barcode: barcode || null
     };
     
-    await db.queryAsync(`UPDATE object_tb SET ? WHERE id = ? AND userId = ?`, [updateObj, id, userId]);
+    await db.queryAsync(`UPDATE object_tb SET ? WHERE id = ? AND userId = ? AND deleted = 0`, [updateObj, id, userId]);
 
     return res.json({ code: 0, data: { id } });
   } catch (err) {
@@ -250,25 +250,16 @@ router.delete('/delete', async function(req, res) {
   try {
     const { id } = req.body || {};
     if (!id) {
-      return res.json({ code: 1, msg: 'id is required', data: null });
+      return res.json({ code: 1, msg: 'id is required'});
     }
     const userId = req.user.id;
-    
-    // Check if object exists and belongs to user
-    const objectCheck = await db.queryAsync('SELECT id FROM object_tb WHERE id = ? AND userId = ?', [id, userId]);
-    if (!objectCheck.length) {
-      return res.json({ code: 1, msg: 'not found', data: null });
-    }
-    
-    // Delete associated files first
-    await fileService.deleteEntityFiles(id, 'object');
-    
-    // Delete the object
-    const result = await db.queryAsync('DELETE FROM object_tb WHERE id = ? AND userId = ?', [id, userId]);
+
+    // Soft delete the object by setting deleted = 1
+    const result = await db.queryAsync('UPDATE object_tb SET deleted = 1, deleted_at = NOW() WHERE id = ? AND userId = ?', [id, userId]);
     if (result.affectedRows === 0) {
-      return res.json({ code: 1, msg: 'not found', data: null });
+      return res.json({ code: 4, msg: 'not found' });
     }
-    return res.json({ code: 0, msg: '', data: { id } });
+    return res.json({ code: 0, data: { id } });
   } catch (err) {
     console.error(67167, err);
     return res.json({code: 7, msg: "Internal server error"});
@@ -291,7 +282,7 @@ router.get('/suggest', async function(req, res) {
       `
         SELECT id, name, description, barcode, inventoryId, shelfId
         FROM object_tb
-        WHERE userId = ? AND name LIKE ?
+        WHERE userId = ? AND name LIKE ? AND deleted = 0
         ORDER BY id DESC
         LIMIT 1
       `,

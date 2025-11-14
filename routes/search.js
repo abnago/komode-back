@@ -40,19 +40,27 @@ router.post('/:inventoryId?', async (req, res) => {
       `, [userId, searchPattern, searchPattern]);
     }
     
-    // Search for shelves
     const shelves = await db.queryAsync(`
-      SELECT * FROM shelf_tb
-      WHERE userId = ? AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ?)
-      ORDER BY id DESC
+      SELECT st.* FROM shelf_tb AS st
+      LEFT OUTER JOIN inventory_tb AS it ON st.inventoryId = it.id
+      WHERE 
+        st.userId = ? 
+        AND (LOWER(st.name) LIKE ? OR LOWER(st.description) LIKE ?)
+        AND it.id IS NOT NULL 
+        AND it.deleted = 0
+      ORDER BY st.id DESC
       LIMIT 5
     `, [userId, searchPattern, searchPattern]);
-    
-    // Search for objects (limit 5)
+
     const objects = await db.queryAsync(`
-      SELECT * FROM object_tb
-      WHERE userId = ? AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ? OR barcode = ?)
-      ORDER BY id DESC
+      SELECT ot.* FROM object_tb AS ot
+      LEFT OUTER JOIN inventory_tb AS it ON ot.inventoryId = it.id
+      WHERE 
+        ot.userId = ? 
+        AND (LOWER(ot.name) LIKE ? OR LOWER(ot.description) LIKE ? OR ot.barcode = ?)
+        AND it.id IS NOT NULL 
+        AND it.deleted = 0
+      ORDER BY ot.id DESC
       LIMIT 5
     `, [userId, searchPattern, searchPattern, value]);
         

@@ -14,6 +14,7 @@ const objectRouter = require('./routes/object');
 const shelfRouter = require('./routes/shelf');
 const searchRouter = require('./routes/search');
 const authRouter = require('./routes/auth');
+const deletedsRouter = require('./routes/deleteds');
 const { authenticateToken } = require('./middleware/auth');
 
 var app = express();
@@ -32,6 +33,7 @@ app.use('/inventory', authenticateToken, inventoryRouter);
 app.use('/object', authenticateToken, objectRouter);
 app.use('/shelf', authenticateToken, shelfRouter);
 app.use('/search', authenticateToken, searchRouter);
+app.use('/deleteds', authenticateToken, deletedsRouter);
 app.use('/auth', authRouter);
 
 // Global error handler

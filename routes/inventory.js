@@ -118,22 +118,16 @@ router.post('/delete', async function (req, res) {
   try {
     const { id } = req.body || {};
     if (!id) {
-      return res.json({ code: 1, msg: 'id is required', data: null });
+      return res.json({ code: 1, msg: 'id is required' });
     }
     const userId = req.user.id;
 
-    // Check if inventory exists and belongs to user
-    const inventoryCheck = await db.queryAsync('SELECT id FROM inventory_tb WHERE id = ? AND userId = ? AND deleted = 0', [id, userId]);
-    if (!inventoryCheck.length) {
-      return res.json({ code: 1, msg: 'not found', data: null });
-    }
-
     // Soft delete the inventory by setting deleted = 1
-    const result = await db.queryAsync('UPDATE inventory_tb SET deleted = 1 WHERE id = ? AND userId = ?', [id, userId]);
+    const result = await db.queryAsync('UPDATE inventory_tb SET deleted = 1, deleted_at = NOW() WHERE id = ? AND userId = ?', [id, userId]);
     if (result.affectedRows === 0) {
-      return res.json({ code: 1, msg: 'not found', data: null });
+      return res.json({ code: 4, msg: 'not found' });
     }
-    return res.json({ code: 0, msg: '', data: { id } });
+    return res.json({ code: 0, data: { id } });
   } catch (err) {
     console.error(67162, err);
     return res.json({ code: 7, msg: "Internal server error" });
