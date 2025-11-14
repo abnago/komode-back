@@ -72,7 +72,7 @@ router.post('/:inventoryId?', async (req, res) => {
 
       objectsWithThumbnails.push({
         ...obj,
-        thumbnail: thumbnail ? urlJoin(process.env.UPLOAD_URL, thumbnail) : null
+        thumbnail,
       });
     }
     

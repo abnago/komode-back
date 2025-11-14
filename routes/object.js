@@ -44,7 +44,7 @@ router.post('/create', upload.array('images', 5), async function(req, res) {
     
     // Handle file uploads
     if (req.files && req.files.length > 0) {
-      await fileService.insertFiles(objectId, 'object', req.files);
+      await fileService.insertFiles(objectId, 'object', req.files, userId);
     }
     
     return res.json({ code: 0, msg: '', data: { id: objectId } });
@@ -73,7 +73,7 @@ router.get('/get', async function(req, res) {
     for (const file of files) {
       images.push({
         id: file.id,
-        url: file.filename ? urlJoin(process.env.UPLOAD_URL, file.filename) : null
+        filename: file.filename
       });
     }
 
@@ -172,8 +172,8 @@ router.get('/list', async function(req, res) {
 
       data.push({
         ...obj,
-        thumbnail: thumbnail ? urlJoin(process.env.UPLOAD_URL, thumbnail) : null,
-        images: files.map(file => file && file.filename ? urlJoin(process.env.UPLOAD_URL, file.filename) : null)
+        thumbnail: thumbnail,
+        images: files.map(file => file && file.filename)
       });
     }
     
@@ -225,7 +225,7 @@ router.put('/update', upload.array('images', 5), async function(req, res) {
 
     // Handle new file uploads
     if (req.files && req.files.length > 0) {
-      await fileService.insertFiles(id, 'object', req.files, false);
+      await fileService.insertFiles(id, 'object', req.files, userId, false);
     }
 
     let updateObj = {

@@ -50,28 +50,29 @@ async function deleteFilesFromDisk(filenames) {
   return deletedCount;
 }
 
-async function insertFiles(entityId, entityType, files, isPrimary = false) {
-    if (!files || files.length === 0) return [];
+async function insertFiles(entityId, entityType, files, userId, isPrimary = false) {
+  if (!files || files.length === 0) return [];
 
-    const fileRecords = files.map((file, index) => ({
-        entityId: entityId,
-        entityType: entityType,
-        filename: file.filename,
-        isPrimary: isPrimary && index === 0 // First file is primary for inventory
-    }));
+  const fileRecords = files.map((file, index) => ({
+    entityId: entityId,
+    entityType: entityType,
+    filename: file.filename,
+    userId: userId,
+    isPrimary: isPrimary && index === 0 // First file is primary for inventory
+  }));
 
-    const insertedRecords = [];
-    for (const record of fileRecords) {
-        const result = await db.queryAsync(
-            'INSERT INTO file_tb (entityId, entityType, filename, isPrimary) VALUES (?, ?, ?, ?)',
-            [record.entityId, record.entityType, record.filename, record.isPrimary]
-        );
-        insertedRecords.push({
-            id: result.insertId,
-            ...record
-        });
-    }
-    return insertedRecords;
+  const insertedRecords = [];
+  for (const record of fileRecords) {
+    const result = await db.queryAsync(
+      'INSERT INTO file_tb (entityId, entityType, filename, userId, isPrimary) VALUES (?, ?, ?, ?, ?)',
+      [record.entityId, record.entityType, record.filename, record.userId, record.isPrimary]
+    );
+    insertedRecords.push({
+      id: result.insertId,
+      ...record
+    });
+  }
+  return insertedRecords;
 }
 
 async function getFiles(entityId, entityType) {
@@ -146,38 +147,6 @@ async function deleteEntityFiles(entityId, entityType) {
     return result.affectedRows;
 }
 
-async function updatePrimaryFile(entityId, entityType, newFilename) {
-    // First, get the old primary filenames to delete them from disk
-    const oldFilesResult = await db.queryAsync(
-        'SELECT filename FROM file_tb WHERE entityId = ? AND entityType = ? AND isPrimary = true',
-        [entityId, entityType]
-    );
-    
-    // Delete old files from disk
-    const oldFilenames = oldFilesResult.map(file => file.filename);
-    await deleteFilesFromDisk(oldFilenames);
-    
-    // Set all files for this entity to not primary
-    await db.queryAsync(
-        'UPDATE file_tb SET isPrimary = false WHERE entityId = ? AND entityType = ?',
-        [entityId, entityType]
-    );
-
-    // Then insert the new primary file
-    const result = await db.queryAsync(
-        'INSERT INTO file_tb (entityId, entityType, filename, isPrimary) VALUES (?, ?, ?, true)',
-        [entityId, entityType, newFilename]
-    );
-
-    return {
-        id: result.insertId,
-        entityId: entityId,
-        entityType: entityType,
-        filename: newFilename,
-        isPrimary: true
-    };
-}
-
 module.exports = {
   insertFiles,
   getFiles,
@@ -185,5 +154,4 @@ module.exports = {
   deleteFiles,
   deleteFilesByFilenames,
   deleteEntityFiles,
-  updatePrimaryFile
 };

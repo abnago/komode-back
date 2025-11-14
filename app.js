@@ -15,6 +15,7 @@ const shelfRouter = require('./routes/shelf');
 const searchRouter = require('./routes/search');
 const authRouter = require('./routes/auth');
 const deletedsRouter = require('./routes/deleteds');
+const filesRouter = require('./routes/files');
 const { authenticateToken } = require('./middleware/auth');
 
 var app = express();
@@ -27,8 +28,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
+// Authenticated file serving route (replaces public static serving)
+app.use('/files', authenticateToken, filesRouter);
 app.use('/inventory', authenticateToken, inventoryRouter);
 app.use('/object', authenticateToken, objectRouter);
 app.use('/shelf', authenticateToken, shelfRouter);

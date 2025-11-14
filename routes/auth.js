@@ -118,10 +118,11 @@ router.get('/verify', (req, res) => {
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const user = await db.queryAsync(
-      'SELECT * FROM user_tb WHERE id = ?',
-      [userId]
-    );
+    const user = await db.queryAsync(`
+      SELECT ut.*, ft.filename AS profilePic FROM user_tb AS ut
+      LEFT OUTER JOIN file_tb AS ft ON ft.entityType = 'user_profile_pic' AND ft.entityId = ut.id 
+      WHERE ut.id = ?
+    `, [userId]);
     
     if (!user[0]) {
       return res.json({ code: -1, msg: 'User not found' });
@@ -131,7 +132,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
       code: 0,
       data: {
         id: user[0].id,
-        profilePic: user[0].profilePic ? urlJoin(process.env.UPLOAD_URL, user[0].profilePic) : null,
+        profilePic: user[0].profilePic,
         email: user[0].email,
         name: user[0].name,
         googleId: user[0].googleId,
@@ -152,7 +153,11 @@ router.put('/profile', authenticateToken, upload.array('profilePic', 1), async (
  
     let updateObj = { name }
     if(req.files && req.files.length > 0) {
-      updateObj.profilePic = req.files[0].filename;
+      // Insert the file into file_tb
+      await db.queryAsync(
+        'INSERT INTO file_tb (filename, entityType, entityId, userId) VALUES (?, ?, ?, ?)',
+        [req.files[0].filename, 'user_profile_pic', userId, userId]
+      );
     }
       
     await db.queryAsync(`UPDATE user_tb SET ? WHERE id = ?`, [updateObj, userId]);
