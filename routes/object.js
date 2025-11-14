@@ -20,16 +20,6 @@ router.post('/create', upload.array('images', 5), async function(req, res) {
       return res.json({ code: 1, msg: 'quantity is required', data: null });
     }
     const userId = req.user.id;
-
-    if (barcode) {
-      const barcodeExists = await db.queryAsync(
-        'SELECT id FROM object_tb WHERE userId = ? AND barcode = ?',
-        [userId, barcode]
-      );
-      if (barcodeExists.length) {
-        return res.json({ code: 1, msg: 'barcode already exists', data: null });
-      }
-    }
     
     // Verify that the inventory belongs to the user
     const inventoryCheck = await db.queryAsync('SELECT id FROM inventory_tb WHERE id = ? AND userId = ? AND deleted = 0', [inventoryId, userId]);
@@ -215,16 +205,6 @@ router.put('/update', upload.array('images', 5), async function(req, res) {
       const shelfCheck = await db.queryAsync('SELECT id FROM shelf_tb WHERE id = ? AND userId = ? AND inventoryId = ?', [shelfId, userId, objectCheck[0].inventoryId]);
       if (!shelfCheck.length) {
         return res.json({ code: 1, msg: 'shelf not found', data: null });
-      }
-    }
-
-    if (barcode) {
-      const existingBarcode = await db.queryAsync(
-        'SELECT id FROM object_tb WHERE userId = ? AND barcode = ? AND id <> ?',
-        [userId, barcode, id]
-      );
-      if (existingBarcode.length) {
-        return res.json({ code: 1, msg: 'barcode already exists', data: null });
       }
     }
     
