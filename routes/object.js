@@ -266,6 +266,34 @@ router.delete('/delete', async function(req, res) {
   }
 });
 
+// Update Object Quantity (PATCH /object/quantity)
+router.patch('/quantity', async function(req, res) {
+  try {
+    const { id, quantity } = req.body || {};
+    if (!id) {
+      return res.json({ code: 1, msg: 'id is required' });
+    }
+    if (quantity == null) {
+      return res.json({ code: 1, msg: 'quantity is required' });
+    }
+    
+    const userId = req.user.id;
+    
+    // Check if object exists and belongs to user
+    const objectCheck = await db.queryAsync('SELECT id FROM object_tb WHERE id = ? AND userId = ? AND deleted = 0', [id, userId]);
+    if (!objectCheck.length) {
+      return res.json({ code: 1, msg: 'not found' });
+    }
+    
+    await db.queryAsync('UPDATE object_tb SET quantity = ? WHERE id = ? AND userId = ? AND deleted = 0', [quantity, id, userId]);
+    
+    return res.json({ code: 0, data: { id, quantity } });
+  } catch (err) {
+    console.error(67170, err);
+    return res.json({code: 7, msg: "Internal server error"});
+  }
+});
+
 // Suggest objects for autocomplete (GET /object/suggest?term=)
 router.get('/suggest', async function(req, res) {
   try {
