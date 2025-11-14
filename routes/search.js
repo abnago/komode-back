@@ -53,7 +53,7 @@ router.post('/:inventoryId?', async (req, res) => {
     `, [userId, searchPattern, searchPattern]);
 
     const objects = await db.queryAsync(`
-      SELECT ot.* FROM object_tb AS ot
+      SELECT ot.*, it.name AS inventoryName FROM object_tb AS ot
       LEFT OUTER JOIN inventory_tb AS it ON ot.inventoryId = it.id
       WHERE 
         ot.userId = ? 
