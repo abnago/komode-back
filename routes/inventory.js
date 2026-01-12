@@ -44,7 +44,15 @@ router.get('/get', async function (req, res) {
 router.get('/list', async function (req, res) {
   try {
     const userId = req.user.id;
-    const result = await db.queryAsync('SELECT * FROM inventory_tb WHERE userId = ? AND deleted = 0 ORDER BY id DESC', [userId]);
+    const result = await db.queryAsync(
+      `SELECT i.*, COUNT(o.id) as objectCount 
+       FROM inventory_tb i 
+       LEFT OUTER JOIN object_tb o ON i.id = o.inventoryId 
+       WHERE i.userId = ? AND i.deleted = 0 
+       GROUP BY i.id 
+       ORDER BY i.id DESC`, 
+      [userId]
+    );
 
     return res.json({ code: 0, msg: '', data: result });
   } catch (err) {
